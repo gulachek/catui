@@ -1,11 +1,8 @@
-#define BOOST_TEST_MODULE CatuiTest
+#define BOOST_TEST_MODULE HandshakeTest
 #include <boost/test/unit_test.hpp>
 
-#include <gulachek/catui.hpp>
-
-#include <gulachek/gtree.hpp>
+#include <gulachek/catui/handshake.hpp>
 #include <gulachek/gtree/encoding/string.hpp>
-#include <gulachek/gtree/encoding/pair.hpp>
 
 #include <unistd.h>
 #include <sys/socket.h>
@@ -26,7 +23,7 @@ using ec = catui::connect_error_code;
 struct unix_fixture
 {
 	int server_;
-	int client_;
+	std::shared_ptr<catui::connection> client_;
 	const char *addr_;
 
 	std::thread listener_;
@@ -47,7 +44,7 @@ struct unix_fixture
 		::unlink(addr_);
 
 		server_ = -1;
-		client_ = -1;
+		client_ = nullptr;
 
 		server_ = ::socket(AF_UNIX, SOCK_STREAM, 0);
 		BOOST_REQUIRE(server_ >= 0);
@@ -70,7 +67,7 @@ struct unix_fixture
 					return;
 				}
 
-				std::pair<std::string, catui::semver> req;
+				catui::handshake req;
 				if (auto err = gt::read_fd(client, &req))
 				{
 					::close(client);
@@ -84,8 +81,8 @@ struct unix_fixture
 					return;
 				}
 
-				recv_proto_ = req.first;
-				recv_version_ = req.second;
+				recv_proto_ = req.protocol();
+				recv_version_ = req.version();
 
 				gt::write_fd(client, err_msg_);
 				::close(client);
@@ -102,7 +99,8 @@ struct unix_fixture
 
 	auto connect_()
 	{
-		auto err = catui::connect("com.example.catui", {0,1,0}, &client_);
+		catui::handshake shake{"com.example.catui", {0,1,0}};
+		auto err = shake.connect(&client_);
 		return err;
 	}
 

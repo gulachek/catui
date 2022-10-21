@@ -24,8 +24,9 @@ function makeLib(args) {
 		version,
 		apiDef: 'CATUI_API',
 		src: [
-			'src/catui.cpp',
-			'src/semver.cpp'
+			'src/handshake.cpp',
+			'src/semver.cpp',
+			'src/connection.cpp'
 		]
 	});
 
@@ -51,8 +52,8 @@ cppBuild.configure(test, (args) => {
 	const lib = makeLib(args);
 
 	const test = cpp.compile({
-		name: 'catui_test',
-		src: ['test/catui_test.cpp']
+		name: 'handshake_test',
+		src: ['test/handshake_test.cpp']
 	});
 
 	test.define({
