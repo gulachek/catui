@@ -17,8 +17,8 @@
     "url": "https://github.com/gulachek/catui/issues"
   },
   "homepage": "https://github.com/gulachek/catui#readme",
-  "dependencies": {
-    "bach": "^2.0.1",
-    "gulpachek": "github:gulachek/gulpachek"
+  "devDependencies": {
+    "@gulachek/gtree": "^0.1.0",
+    "gulpachek-cpp": "^0.1.0"
   }
 }

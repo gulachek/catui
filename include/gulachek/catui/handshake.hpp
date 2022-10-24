@@ -42,16 +42,22 @@ namespace gulachek::catui
 	enum class connect_error_code
 	{
 		success,
-		no_version,
-		version_no_parse,
-		version_incompatible,
+		no_catui_version,
+		catui_version_no_parse,
+		catui_version_incompatible,
 		no_addr_type,
 		unknown_type,
 		no_addr,
 		no_socket,
 		no_connect,
 		no_ack,
-		rejected
+		rejected,
+		no_config,
+		no_version,
+		version_incompatible,
+		no_exec,
+		no_fork,
+		no_pipe
 	};
 }
 

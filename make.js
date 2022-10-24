@@ -1,14 +1,106 @@
-const { CppBuildCommand } = require('gulpachek/cpp');
+const { CppBuildCommand } = require('gulpachek-cpp');
+const { Path, Target } = require('gulpachek');
 const fs = require('fs');
 const { version } = require('./package.json');
 const { Command } = require('commander');
-const { series, parallel } = require('bach');
 const { spawn } = require('child_process');
+const {
+	writeTree,
+	KeyValue,
+	Vector,
+	Utf8,
+	Unsigned,
+	Tuple
+} = require('@gulachek/gtree');
 
 if (!version) {
 	console.error(new Error('gtree package.json version not specified'));
 	process.exit(1);
 }
+
+class WriteTree extends Target
+{
+	#tree;
+
+	constructor(sys, dest, tree)
+	{
+		super(sys, Path.dest(dest));
+		this.#tree = tree;
+	}
+
+	/*
+	mtime()
+	{
+		return null;
+	}
+	*/
+
+	build()
+	{
+		console.log(`writing tree ${this.path}`);
+		return writeTree(this.abs, this.#tree);
+	}
+}
+
+function writeConfig(sys, dest, config)
+{
+	const semverEnc = new Tuple([
+		['major', Unsigned],
+		['minor', Unsigned],
+		['patch', Unsigned]
+	]);
+
+	const configEnc = new KeyValue({
+		catui_version: semverEnc,
+		version: semverEnc,
+		exec: new Vector(Utf8)
+	});
+
+	return new WriteTree(sys, dest, configEnc.gtreeEncode(config));
+}
+
+function makeSemver(major, minor, patch)
+{
+	return {major,minor,patch};
+}
+
+class Execute extends Target
+{
+	exe;
+	#args;
+
+	constructor(exe, args)
+	{
+		super(exe.sys);
+		this.exe = exe;
+		this.#args = args || [];
+	}
+
+	deps()
+	{
+		return this.exe;
+	}
+
+	build()
+	{
+		console.log(this.exe.path.toString(), ...this.#args);
+		return spawn(this.exe.abs, this.#args, { stdio: 'inherit' }); 
+	}
+}
+
+function execSeries(...exes)
+{
+	if (!exes.length)
+		return null;
+
+	const lastIndex = exes.length - 1;
+	const tail = new Execute(exes[lastIndex]);
+
+	const head = execSeries(...exes.slice(0, lastIndex));
+	head && tail.dependsOn(head);
+	return tail;
+}
+
 
 const program = new Command();
 const cppBuild = new CppBuildCommand({
@@ -16,8 +108,12 @@ const cppBuild = new CppBuildCommand({
 	cppVersion: 20
 });
 
+cppBuild.on('configure', (cmd) => {
+	cmd.option('--catui-install-root <abs>', 'which directory to install catui devices');
+});
+
 function makeLib(args) {
-	const { cpp } = args;
+	const { cpp, sys } = args;
 
 	const lib = cpp.compile({
 		name: 'com.gulachek.catui',
@@ -30,10 +126,15 @@ function makeLib(args) {
 		]
 	});
 
+	lib.define({
+		CATUI_INSTALL_ROOT: { implementation: args.opts.catuiInstallRoot }
+	});
+
 	lib.include('include');
 
 	lib.link(cpp.require('com.gulachek.error', '0.1.0'));
 	lib.link(cpp.require('com.gulachek.gtree', '0.2.0'));
+	lib.link(cpp.require('com.gulachek.dictionary', '0.2.0'));
 
 	return lib;
 }
@@ -49,6 +150,9 @@ const test = program.command('test')
 cppBuild.configure(test, (args) => {
 	const { cpp, sys } = args;
 
+	const installRoot = sys.abs(Path.dest('catui_root'));
+	args.opts.catuiInstallRoot = installRoot;
+
 	const lib = makeLib(args);
 
 	const test = cpp.compile({
@@ -57,13 +161,15 @@ cppBuild.configure(test, (args) => {
 	});
 
 	test.define({
-		TEST_SOCK_ADDR: sys.dest('test_socket').abs()
+		TEST_SOCK_ADDR: sys.abs(Path.dest('test_socket'))
 	});
 
 	const ut = cpp.require('org.boost.unit-test-framework', '1.78.0', 'dynamic');
 
 	test.link(lib);
 	test.link(ut);
+
+	const handshakeTest = test.executable();
 
 	const semverTest = cpp.compile({
 		name: 'semver_test',
@@ -73,16 +179,27 @@ cppBuild.configure(test, (args) => {
 	semverTest.link(lib);
 	semverTest.link(ut);
 
-	const tests = [
-		test,
-		semverTest
-	];
+	const exampleCatui = cpp.compile({
+		name: 'example_catui',
+		src: ['test/example_catui.cpp']
+	});
 
-	const exes = tests.map(t => t.executable());
-	const buildRules = exes.map(e => sys.rule(e));
-	const runTests = exes.map(e => () => spawn(e.abs(), [], { stdio: 'inherit' }));
+	exampleCatui.link(lib);
 
-	return series(parallel(...buildRules), series(...runTests));
+	const exampleExe = exampleCatui.executable();
+
+	const config = writeConfig(
+		sys, 'catui_root/com.example.catui/0/config.gt',
+		{
+			exec: [exampleExe.abs],
+			catui_version: makeSemver(0,1,0),
+			version: makeSemver(0,1,0)
+		}
+	);
+
+	handshakeTest.dependsOn(exampleExe, config);
+
+	return execSeries(semverTest.executable(), handshakeTest);
 });
 
 cppBuild.pack(makeLib);

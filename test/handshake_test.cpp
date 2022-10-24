@@ -15,6 +15,7 @@
 
 namespace catui = gulachek::catui;
 namespace gt = gulachek::gtree;
+using gulachek::error;
 using ec = catui::connect_error_code;
 
 #define PP_SUCKS(X) # X
@@ -113,25 +114,18 @@ struct unix_fixture
 
 BOOST_FIXTURE_TEST_SUITE(Unix, unix_fixture)
 
-	BOOST_AUTO_TEST_CASE(NoVersion)
-	{
-		::unsetenv("GULACHEK_CATUI_VERSION");
-
-		connect_has_code_(ec::no_version);
-	}
-
 	BOOST_AUTO_TEST_CASE(BadVersionScheme)
 	{
 		::setenv("GULACHEK_CATUI_VERSION", "cookie-monster", 1);
 
-		connect_has_code_(ec::version_no_parse);
+		connect_has_code_(ec::catui_version_no_parse);
 	}
 
 	BOOST_AUTO_TEST_CASE(VersionUnreleasedMajorTooBig)
 	{
 		::setenv("GULACHEK_CATUI_VERSION", "0.2.0", 1);
 
-		connect_has_code_(ec::version_incompatible);
+		connect_has_code_(ec::catui_version_incompatible);
 	}
 
 	BOOST_AUTO_TEST_CASE(NoAddrType)
@@ -181,6 +175,51 @@ BOOST_FIXTURE_TEST_SUITE(Unix, unix_fixture)
 	{
 		err_msg_ = "some error";
 		connect_has_code_(ec::rejected);
+	}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+struct fork_fixture
+{
+	std::shared_ptr<catui::connection> client_;
+	catui::handshake shake_;
+
+	void setup()
+	{
+		// make sure to not use this stuff
+		::unsetenv("GULACHEK_CATUI_VERSION");
+		::unsetenv("GULACHEK_CATUI_ADDR_TYPE");
+		::unsetenv("GULACHEK_CATUI_ADDR");
+
+		shake_ = catui::handshake{"com.example.catui", {0,1,0}};
+	}
+
+	error connect_()
+	{
+		return shake_.connect(&client_);
+	}
+
+	void teardown()
+	{
+	}
+};
+
+BOOST_FIXTURE_TEST_SUITE(Fork, fork_fixture)
+
+	BOOST_AUTO_TEST_CASE(ForksProcessFromDefaultInstallLocation)
+	{
+		auto err = connect_();
+		BOOST_REQUIRE(!err);
+
+		std::string outmsg = "hello";
+		if (auto err = client_->write(outmsg))
+			BOOST_FAIL(err.what());
+
+		std::string msg;
+		if (auto err = client_->read(&msg))
+			BOOST_FAIL(err.what());
+
+		BOOST_TEST(msg == "echo: hello");
 	}
 
 BOOST_AUTO_TEST_SUITE_END()
