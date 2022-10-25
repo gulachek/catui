@@ -62,6 +62,13 @@ struct unix_fixture
 		BOOST_REQUIRE(listen_err == 0);
 
 		listener_ = std::thread([this](){
+				// there are some atrocities of using sockets between threads
+				// with accept/close called in different threads. if this test
+				// takes 10ms it seems like that's ok to fail. that's way too slow
+				struct timeval tv;
+				tv.tv_sec = 0;
+				tv.tv_usec = 10000;
+				::setsockopt(server_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 				int client = ::accept(server_, NULL, NULL);
 				if (client == -1)
 				{
