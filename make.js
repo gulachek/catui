@@ -28,12 +28,10 @@ class WriteTree extends Target
 		this.#tree = tree;
 	}
 
-	/*
 	mtime()
 	{
 		return null;
 	}
-	*/
 
 	build()
 	{
@@ -81,9 +79,14 @@ class Execute extends Target
 		return this.exe;
 	}
 
+	toString()
+	{
+		return `Execute{${this.exe.path}}`;
+	}
+
 	build()
 	{
-		console.log(this.exe.path.toString(), ...this.#args);
+		console.log('executing', this.exe.path.toString(), ...this.#args);
 		return spawn(this.exe.abs, this.#args, { stdio: 'inherit' }); 
 	}
 }
@@ -197,9 +200,9 @@ cppBuild.configure(test, (args) => {
 		}
 	);
 
-	handshakeTest.dependsOn(exampleExe, config);
-
-	return execSeries(semverTest.executable(), handshakeTest);
+	const series = execSeries(semverTest.executable(), handshakeTest);
+	series.dependsOn(exampleExe, config);
+	return series;
 });
 
 cppBuild.pack(makeLib);
