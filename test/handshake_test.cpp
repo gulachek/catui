@@ -190,6 +190,7 @@ struct fork_fixture
 {
 	std::shared_ptr<catui::connection> client_;
 	catui::handshake shake_;
+	std::string override_root_;
 
 	void setup()
 	{
@@ -198,7 +199,10 @@ struct fork_fixture
 		::unsetenv("GULACHEK_CATUI_ADDR_TYPE");
 		::unsetenv("GULACHEK_CATUI_ADDR");
 
+		::unsetenv("GULACHEK_CATUI_DEVICE_PATH");
+
 		shake_ = catui::handshake{"com.example.catui", {0,1,0}};
+		override_root_ = STR(TEST_OVERRIDE_ROOT);
 	}
 
 	error connect_()
@@ -234,6 +238,56 @@ BOOST_FIXTURE_TEST_SUITE(Fork, fork_fixture)
 		catui::handshake bad{"../path/to/insecure/install", {0,1,0}};
 		auto err = bad.connect(&client_);
 		BOOST_TEST(err.has_ucode(ec::bad_protocol));
+	}
+
+	BOOST_AUTO_TEST_CASE(CheckOverridePath)
+	{
+		auto path = override_root_;
+		::setenv("GULACHEK_CATUI_DEVICE_PATH", path.c_str(), 1);
+		catui::handshake hs{"com.example.override", {0,1,0}};
+		auto err = hs.connect(&client_);
+
+		BOOST_REQUIRE(!err);
+
+		std::string outmsg = "hello";
+		if (auto err = client_->write(outmsg))
+			BOOST_FAIL(err.what());
+
+		std::string msg;
+		if (auto err = client_->read(&msg))
+			BOOST_FAIL(err.what());
+
+		BOOST_TEST(msg == "echo: hello");
+	}
+
+	BOOST_AUTO_TEST_CASE(CheckOverridePathIsSemiDelimList)
+	{
+		auto path = std::string{"/some/path;"} + override_root_;
+		::setenv("GULACHEK_CATUI_DEVICE_PATH", path.c_str(), 1);
+		catui::handshake hs{"com.example.override", {0,1,0}};
+		auto err = hs.connect(&client_);
+
+		BOOST_REQUIRE(!err);
+
+		std::string outmsg = "hello";
+		if (auto err = client_->write(outmsg))
+			BOOST_FAIL(err.what());
+
+		std::string msg;
+		if (auto err = client_->read(&msg))
+			BOOST_FAIL(err.what());
+
+		BOOST_TEST(msg == "echo: hello");
+	}
+
+	BOOST_AUTO_TEST_CASE(RelativePathsNotAllowed)
+	{
+		auto path = std::string{"some/relpath;"} + override_root_;
+		::setenv("GULACHEK_CATUI_DEVICE_PATH", path.c_str(), 1);
+		catui::handshake hs{"com.example.override", {0,1,0}};
+		auto err = hs.connect(&client_);
+
+		BOOST_TEST(err.has_ucode(ec::bad_override));
 	}
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -60,7 +60,8 @@ namespace gulachek::catui
 		no_exec,
 		no_fork,
 		no_pipe,
-		bad_protocol
+		bad_protocol,
+		bad_override
 	};
 }
 

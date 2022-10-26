@@ -22,6 +22,7 @@
 #include <string_view>
 #include <filesystem>
 #include <regex>
+#include <list>
 
 namespace gt = gulachek::gtree;
 
@@ -171,11 +172,49 @@ namespace gulachek::catui
 		}
 		else
 		{
-			std::filesystem::path root{STR(CATUI_INSTALL_ROOT)};
-			auto major = std::to_string(version_.major());
-			auto config = root / protocol_ / major / "config.gt";
-			dictionary dict;
 
+			std::list<std::filesystem::path> roots;
+
+			auto override_c = std::getenv("GULACHEK_CATUI_DEVICE_PATH");
+			if (override_c)
+			{
+				std::istringstream is{override_c};
+				std::string root;
+				while (std::getline(is, root, ';'))
+				{
+					std::filesystem::path p{root};
+					if (!p.is_absolute())
+					{
+						return error{ec::bad_override} << "Path is not absolute: " <<
+							p;
+					}
+
+					roots.push_back(std::move(p));
+				}
+			}
+
+			roots.push_back(STR(CATUI_INSTALL_ROOT));
+
+			std::filesystem::path config;
+			bool found = false;
+
+			auto major = std::to_string(version_.major());
+			auto rel = std::filesystem::path{protocol_} / major / "config.gt";
+
+			for (const auto &root : roots)
+			{
+				config = root / rel;
+				if (std::filesystem::exists(config))
+				{
+					found = true;
+					break;
+				}
+			}
+
+			if (!found)
+				return error{ec::no_config} << "config not found: " << protocol_;
+
+			dictionary dict;
 			if (auto err = gt::read_file(config, &dict))
 			{
 				auto wrap = err.wrap() << "Error reading installed config";

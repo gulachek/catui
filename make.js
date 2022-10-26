@@ -1,5 +1,5 @@
 const { CppBuildCommand } = require('gulpachek-cpp');
-const { Path, Target } = require('gulpachek');
+const { Path, Target, copyFile } = require('gulpachek');
 const fs = require('fs');
 const { version } = require('./package.json');
 const { Command } = require('commander');
@@ -163,8 +163,11 @@ cppBuild.configure(test, (args) => {
 		src: ['test/handshake_test.cpp']
 	});
 
+	const overrideRoot = Path.dest('override_root');
+
 	test.define({
-		TEST_SOCK_ADDR: sys.abs(Path.dest('test_socket'))
+		TEST_SOCK_ADDR: sys.abs(Path.dest('test_socket')),
+		TEST_OVERRIDE_ROOT: sys.abs(overrideRoot)
 	});
 
 	const ut = cpp.require('org.boost.unit-test-framework', '1.78.0', 'dynamic');
@@ -200,8 +203,11 @@ cppBuild.configure(test, (args) => {
 		}
 	);
 
+	const override =
+		copyFile(config, overrideRoot.join('com.example.override/0'));
+
 	const series = execSeries(semverTest.executable(), handshakeTest);
-	series.dependsOn(exampleExe, config);
+	series.dependsOn(exampleExe, config, override);
 	return series;
 });
 
