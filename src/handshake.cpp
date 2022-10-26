@@ -21,6 +21,7 @@
 #include <cstdlib>
 #include <string_view>
 #include <filesystem>
+#include <regex>
 
 namespace gt = gulachek::gtree;
 
@@ -116,10 +117,19 @@ namespace gulachek::catui
 		return {};
 	}
 
+	bool handshake::is_protocol(std::string_view proto)
+	{
+		static std::regex re{R"([a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*)"};
+		return std::regex_match(proto.begin(), proto.end(), re);
+	}
+
 	error handshake::connect(std::shared_ptr<connection> *pconn) const
 	{
 		error err;
 		using ec = connect_error_code;
+
+		if (!is_protocol(protocol_))
+			return {ec::bad_protocol, "Bad protocol"};
 
 		// hard coded into implementation. entire purpose of library is to
 		// handle this protocol

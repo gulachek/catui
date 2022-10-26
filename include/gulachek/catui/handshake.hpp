@@ -32,6 +32,8 @@ namespace gulachek::catui
 
 			error connect(std::shared_ptr<connection> *pconn) const;
 
+			static bool is_protocol(std::string_view proto);
+
 		private:
 			std::string protocol_;
 			semver version_;
@@ -57,7 +59,8 @@ namespace gulachek::catui
 		version_incompatible,
 		no_exec,
 		no_fork,
-		no_pipe
+		no_pipe,
+		bad_protocol
 	};
 }
 

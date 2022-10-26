@@ -229,4 +229,43 @@ BOOST_FIXTURE_TEST_SUITE(Fork, fork_fixture)
 		BOOST_TEST(msg == "echo: hello");
 	}
 
+	BOOST_AUTO_TEST_CASE(ProtocolIsValidated)
+	{
+		catui::handshake bad{"../path/to/insecure/install", {0,1,0}};
+		auto err = bad.connect(&client_);
+		BOOST_TEST(err.has_ucode(ec::bad_protocol));
+	}
+
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_CASE(ValidatingProtocols)
+{
+	auto good = [](const char *p){
+		BOOST_TEST(catui::handshake::is_protocol(p));
+	};
+
+	auto bad = [](const char *p){
+		BOOST_TEST(!catui::handshake::is_protocol(p));
+	};
+
+	good("a");
+	good("b");
+	bad("");
+	bad("9abc");
+	bad("ABC");
+	bad("..");
+	bad(".");
+	good("hello");
+	good("hello.world");
+	bad("hello..world");
+	bad("hello.world.");
+	bad(".hello.world");
+	good("h-e-l-l-o.wor-ld");
+	good("h-e-l-l-.wor-");
+	good("h-e-l-l-123.w1or-23");
+	bad("-");
+	bad("-hello");
+	bad("a.-bc");
+	bad("a.0bc");
+	bad("hello/world");
+}
