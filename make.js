@@ -33,7 +33,7 @@ class WriteTree extends Target
 		return null;
 	}
 
-	build()
+	recipe()
 	{
 		console.log(`writing tree ${this.path}`);
 		return writeTree(this.abs, this.#tree);
