@@ -1,6 +1,6 @@
 {
   "name": "catui",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Framework for cross platform IPC based applications",
   "main": "index.js",
   "scripts": {
@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "commander": "^9.4.1",
-    "gulpachek-cpp": "^0.1.1",
+    "gulpachek-cpp": "^0.2.0",
     "semver": "^7.3.8"
   }
 }
