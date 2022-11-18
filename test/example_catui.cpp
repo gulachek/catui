@@ -8,6 +8,12 @@ namespace gt = gulachek::gtree;
 
 int main()
 {
+	std::cerr << "this should not be logged to terminal" << std::endl;
+	if (std::cerr)
+	{
+		return 1;
+	}
+
 	// first step is to ack
 	std::string ack;
 	if (auto err = gt::write(std::cout, ack))

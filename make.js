@@ -84,7 +84,7 @@ class Execute extends Target
 		return `Execute{${this.exe.path}}`;
 	}
 
-	build()
+	recipe()
 	{
 		console.log('executing', this.exe.path.toString(), ...this.#args);
 		return spawn(this.exe.abs, this.#args, { stdio: 'inherit' }); 

@@ -293,6 +293,7 @@ namespace gulachek::catui
 
 				::close(pipe_in[1]);
 				::close(pipe_out[0]);
+				::close(STDERR_FILENO); // TODO: add log file support. nice to have
 
 				auto err = exec(execv);
 				std::cerr << "Failed to exec platform: " << err << std::endl;
