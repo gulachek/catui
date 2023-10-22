@@ -1,28 +1,18 @@
 {
   "name": "catui",
-  "version": "0.1.0",
-  "description": "Framework for cross platform IPC based applications",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/gulachek/catui.git"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/gulachek/catui/issues"
-  },
-  "homepage": "https://github.com/gulachek/catui#readme",
-  "devDependencies": {
-    "@gulachek/gtree": "^0.1.0"
-  },
   "dependencies": {
-    "commander": "^9.4.1",
-    "gulpachek-cpp": "^0.2.0",
-    "semver": "^7.3.8"
+    "glob": "^10.3.10",
+    "iheartmake": "^0.4.0",
+    "iheartmake-c": "^0.1.0"
   }
 }

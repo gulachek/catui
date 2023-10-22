@@ -2,3 +2,5 @@ build
 node_modules
 *.swp
 build.log
+.cache
+pkgconfig

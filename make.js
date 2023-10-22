@@ -1,216 +1,67 @@
-const { CppBuildCommand } = require('gulpachek-cpp');
-const { Path, Target, copyFile } = require('gulpachek');
-const fs = require('fs');
-const { version } = require('./package.json');
-const { Command } = require('commander');
-const { spawn } = require('child_process');
-const {
-	writeTree,
-	KeyValue,
-	Vector,
-	Utf8,
-	Unsigned,
-	Tuple
-} = require('@gulachek/gtree');
+import { cli, Path } from "iheartmake";
+import { platformCompiler, C } from "iheartmake-c";
 
-if (!version) {
-	console.error(new Error('gtree package.json version not specified'));
-	process.exit(1);
-}
+cli((book) => {
+  const c = new C(platformCompiler(), {
+    cVersion: "C17",
+    book,
+  });
 
-class WriteTree extends Target
-{
-	#tree;
+  const unixsocket = "unixsocket";
+  const msgstream = "msgstream";
+  const libcjson = "libcjson";
 
-	constructor(sys, dest, tree)
-	{
-		super(sys, Path.dest(dest));
-		this.#tree = tree;
-	}
+  book.add("all", []);
 
-	mtime()
-	{
-		return null;
-	}
+  /*
+  const catui = linkLibrary(
+    book,
+    "libcatui.dylib",
+    [buffer, catuiObj],
+    [unixsocket, msgstream]
+  );
+	*/
+  const catui = c.addLibrary({
+    name: "catui",
+    version: "0.1.0",
+    src: ["src/catui.c"],
+    link: [unixsocket, msgstream],
+  });
 
-	recipe()
-	{
-		console.log(`writing tree ${this.path}`);
-		return writeTree(this.abs, this.#tree);
-	}
-}
+  const catuiServer = c.addLibrary({
+    name: "catui-server",
+    version: "0.1.0",
+    src: ["src/catui_server.c"],
+    link: [unixsocket, msgstream],
+  });
 
-function writeConfig(sys, dest, config)
-{
-	const semverEnc = new Tuple([
-		['major', Unsigned],
-		['minor', Unsigned],
-		['patch', Unsigned]
-	]);
+  // Load balancer implementation
+  c.addExecutable({
+    name: "catuid",
+    version: "0.1.0",
+    src: ["src/catuid.c"],
+    link: [unixsocket, libcjson, msgstream, catuiServer],
+  });
 
-	const configEnc = new KeyValue({
-		catui_version: semverEnc,
-		version: semverEnc,
-		exec: new Vector(Utf8)
-	});
+  // Testing
+  c.addExecutable({
+    name: "echo_app",
+    src: ["test/echo_app.c"],
+    link: [catui],
+  });
 
-	return new WriteTree(sys, dest, configEnc.gtreeEncode(config));
-}
+  c.addExecutable({
+    name: "echo_server",
+    src: ["test/echo_server.c"],
+    link: [catuiServer],
+  });
 
-function makeSemver(major, minor, patch)
-{
-	return {major,minor,patch};
-}
+  const catuid = Path.build("catuid");
+  const echoApp = Path.build("echo_app");
+  const echoServer = Path.build("echo_server");
 
-class Execute extends Target
-{
-	exe;
-	#args;
+  const compileCommands = Path.build("compile_commands.json");
+  c.addCompileCommands();
 
-	constructor(exe, args)
-	{
-		super(exe.sys);
-		this.exe = exe;
-		this.#args = args || [];
-	}
-
-	deps()
-	{
-		return this.exe;
-	}
-
-	toString()
-	{
-		return `Execute{${this.exe.path}}`;
-	}
-
-	recipe()
-	{
-		console.log('executing', this.exe.path.toString(), ...this.#args);
-		return spawn(this.exe.abs, this.#args, { stdio: 'inherit' }); 
-	}
-}
-
-function execSeries(...exes)
-{
-	if (!exes.length)
-		return null;
-
-	const lastIndex = exes.length - 1;
-	const tail = new Execute(exes[lastIndex]);
-
-	const head = execSeries(...exes.slice(0, lastIndex));
-	head && tail.dependsOn(head);
-	return tail;
-}
-
-
-const program = new Command();
-const cppBuild = new CppBuildCommand({
-	program,
-	cppVersion: 20
+  book.add("all", [compileCommands, echoApp, echoServer, catuid]);
 });
-
-cppBuild.on('configure', (cmd) => {
-	cmd.option('--catui-install-root <abs>', 'which directory to install catui devices');
-});
-
-function makeLib(args) {
-	const { cpp, sys } = args;
-
-	const lib = cpp.compile({
-		name: 'com.gulachek.catui',
-		version,
-		apiDef: 'CATUI_API',
-		src: [
-			'src/handshake.cpp',
-			'src/semver.cpp',
-			'src/connection.cpp'
-		]
-	});
-
-	lib.define({
-		CATUI_INSTALL_ROOT: { implementation: args.opts.catuiInstallRoot }
-	});
-
-	lib.include('include');
-
-	lib.link(cpp.require('com.gulachek.error', '0.1.0'));
-	lib.link(cpp.require('com.gulachek.gtree', '0.2.0'));
-	lib.link(cpp.require('com.gulachek.dictionary', '0.2.0'));
-
-	return lib;
-}
-
-cppBuild.build((args) => {
-	const { cpp } = args;
-	return cpp.toLibrary(makeLib(args)).binary();
-});
-
-const test = program.command('test')
-.description('Build and run unit tests');
-
-cppBuild.configure(test, (args) => {
-	const { cpp, sys } = args;
-
-	const installRoot = sys.abs(Path.dest('catui_root'));
-	args.opts.catuiInstallRoot = installRoot;
-
-	const lib = makeLib(args);
-
-	const test = cpp.compile({
-		name: 'handshake_test',
-		src: ['test/handshake_test.cpp']
-	});
-
-	const overrideRoot = Path.dest('override_root');
-
-	test.define({
-		TEST_SOCK_ADDR: sys.abs(Path.dest('test_socket')),
-		TEST_OVERRIDE_ROOT: sys.abs(overrideRoot)
-	});
-
-	const ut = cpp.require('org.boost.unit-test-framework', '1.78.0', 'dynamic');
-
-	test.link(lib);
-	test.link(ut);
-
-	const handshakeTest = test.executable();
-
-	const semverTest = cpp.compile({
-		name: 'semver_test',
-		src: ['test/semver_test.cpp']
-	});
-
-	semverTest.link(lib);
-	semverTest.link(ut);
-
-	const exampleCatui = cpp.compile({
-		name: 'example_catui',
-		src: ['test/example_catui.cpp']
-	});
-
-	exampleCatui.link(lib);
-
-	const exampleExe = exampleCatui.executable();
-
-	const config = writeConfig(
-		sys, 'catui_root/com.example.catui/0/config.gt',
-		{
-			exec: [exampleExe.abs],
-			catui_version: makeSemver(0,1,0),
-			version: makeSemver(0,1,0)
-		}
-	);
-
-	const override =
-		copyFile(config, overrideRoot.join('com.example.override/0'));
-
-	const series = execSeries(semverTest.executable(), handshakeTest);
-	series.dependsOn(exampleExe, config, override);
-	return series;
-});
-
-cppBuild.pack(makeLib);
-
-program.parse();
