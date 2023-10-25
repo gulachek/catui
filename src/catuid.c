@@ -49,7 +49,6 @@ int child_main(int sock, char **argv) {
   char buf[16];
   snprintf(buf, sizeof(buf), "%d", sock);
   setenv("CATUI_LOAD_BALANCER_FD", buf, 1);
-  fprintf(stderr, "Executing %s\n", argv[0]);
   execv(argv[0], argv);
   perror("execv");
   return 1;
@@ -59,11 +58,15 @@ const char *default_addr_path() {
   return "~/Library/Caches/TemporaryItems/catui/load_balancer.sock";
 }
 
+int semver_parse_cstr(const char *str, struct semver *version);
+int semver_parse(const void *str, size_t len, struct semver *version);
+int semver_can_use(struct semver *consumer, struct semver *api);
+
 typedef char path_type[MAXPATHLEN];
 
-int fork_server(const char *proto, struct semver *version,
-                struct server_entry *servers, int nservers, path_type *paths,
-                int npaths, FILE *err);
+struct server_entry *fork_server(const char *proto, struct semver *version,
+                                 struct server_entry *servers, int nservers,
+                                 path_type *paths, int npaths, FILE *err);
 
 #define NSERVERS 128
 
@@ -78,13 +81,6 @@ int main(int argc, const char **argv) {
   struct server_entry servers[NSERVERS] = {};
   char search_paths[32][MAXPATHLEN] = {};
   strncpy(search_paths[0], "./catui", MAXPATHLEN);
-
-  struct semver version = {.major = 1, .minor = 0, .patch = 0};
-  int server_id = fork_server("com.example.echo", &version, servers, NSERVERS,
-                              search_paths, 1, stderr);
-
-  if (server_id == -1)
-    return 1;
 
   int sock = unix_socket(SOCK_STREAM);
   lb_socket = sock;
@@ -121,6 +117,15 @@ int main(int argc, const char **argv) {
     FD_SET(sock, &readfds);
 
     int max_fd = sock;
+
+    for (int i = 0; i < NSERVERS; ++i) {
+      struct server_entry *server = &servers[i];
+      if (!server->is_active)
+        continue;
+
+      FD_SET(server->sock_fd, &readfds);
+      max_fd = MAX(max_fd, server->sock_fd);
+    }
 
     if (select(max_fd + 1, &readfds, NULL, NULL, NULL) == -1) {
       perror("select");
@@ -167,27 +172,97 @@ int main(int argc, const char **argv) {
         close(conn);
       }
 
-      printf("Received JSON object:\n");
-      for (cJSON *child = json->child; child != NULL; child = child->next) {
-        printf("\t%s: %s\n", child->string, child->valuestring);
+      cJSON *catui_version_value = cJSON_GetObjectItem(json, "catui-version");
+      if (!catui_version_value) {
+        // TODO - inform
+        close(conn);
       }
+
+      char *catui_version_cstr = cJSON_GetStringValue(catui_version_value);
+      if (!catui_version_cstr) {
+        // TODO - inform
+        close(conn);
+      }
+
+      struct semver catui_version;
+      if (semver_parse_cstr(catui_version_cstr, &catui_version) == -1) {
+        // TODO - inform
+        close(conn);
+      }
+
+      struct semver my_version = {.major = 0, .minor = 1, .patch = 0};
+      if (!semver_can_use(&catui_version, &my_version)) {
+        // TODO - inform
+        close(conn);
+      }
+
+      cJSON *proto_value = cJSON_GetObjectItem(json, "protocol");
+      if (!proto_value) {
+        // TODO - inform
+        close(conn);
+      }
+
+      char *proto = cJSON_GetStringValue(proto_value);
+      if (!proto) {
+        // TODO - inform
+        close(conn);
+      }
+
+      cJSON *version_value = cJSON_GetObjectItem(json, "version");
+      if (!version_value) {
+        // TODO - inform
+        close(conn);
+      }
+
+      char *version_cstr = cJSON_GetStringValue(version_value);
+      if (!version_cstr) {
+        // TODO - inform
+        close(conn);
+      }
+
+      struct semver version;
+      if (semver_parse_cstr(version_cstr, &version) == -1) {
+        // TODO - inform
+        close(conn);
+      }
+
+      struct server_entry *server = fork_server(
+          proto, &version, servers, NSERVERS, search_paths, 1, stderr);
 
       cJSON_Delete(json);
 
-      struct server_entry *server = &servers[server_id];
-
-      if (unix_send_fd(server->sock_fd, conn) == -1) {
-        perror("unix_send_fd");
-        close(conn);
-        exit_code = 1;
-        break;
+      if (server) {
+        if (unix_send_fd(server->sock_fd, conn) == -1) {
+          perror("unix_send_fd");
+          close(conn);
+          exit_code = 1;
+          break;
+        }
       }
 
       close(conn);
     }
+
+    // Clear closed servers
+    for (int i = 0; i < NSERVERS; ++i) {
+      struct server_entry *server = &servers[i];
+      if (FD_ISSET(server->sock_fd, &readfds)) {
+        char *null;
+        int nread = read(server->sock_fd, &null, 1);
+        if (nread == -1) {
+          perror("read");
+          continue;
+        } else if (nread > 0) {
+          fprintf(stderr, "Unexpected info from server '%s'\n", server->proto);
+          continue;
+        } else {
+          close(server->sock_fd);
+          memset(server, 0, sizeof(struct server_entry));
+        }
+      }
+    }
   }
 
-  waitpid(servers[server_id].pid, NULL, 0);
   unlink(addr_path);
 
   return exit_code;
@@ -209,14 +284,9 @@ int semver_can_use(struct semver *consumer, struct semver *api) {
   }
 }
 
-int semver_parse(const char *str, size_t len, struct semver *version) {
-  char safebuf[256] = {};
-  if (len > 255)
-    return -1;
-  strncpy(safebuf, str, len); // null terminated for sure
-
+int semver_parse_cstr(const char *str, struct semver *version) {
   unsigned int major, minor, patch;
-  if (sscanf(safebuf, "%u.%u.%u", &major, &minor, &patch) != 3)
+  if (sscanf(str, "%u.%u.%u", &major, &minor, &patch) != 3)
     return -1;
 
   if (major > UINT16_MAX || minor > UINT16_MAX || patch > UINT32_MAX)
@@ -228,13 +298,24 @@ int semver_parse(const char *str, size_t len, struct semver *version) {
   return 0;
 }
 
+int semver_parse(const void *str, size_t len, struct semver *version) {
+  char safebuf[256];
+  safebuf[255] = 0;
+
+  if (len > 255)
+    return -1;
+  strncpy(safebuf, str, len); // null terminated for sure
+
+  return semver_parse_cstr(safebuf, version);
+}
+
 /*
  * Fork process if necessary. Return index in servers of
  * forked server. Return -1 on error
  */
-int fork_server(const char *proto, struct semver *version,
-                struct server_entry *servers, int nservers, path_type *paths,
-                int npaths, FILE *err) {
+struct server_entry *fork_server(const char *proto, struct semver *version,
+                                 struct server_entry *servers, int nservers,
+                                 path_type *paths, int npaths, FILE *err) {
 
   int first_inactive = -1;
 
@@ -243,7 +324,7 @@ int fork_server(const char *proto, struct semver *version,
     if (server->is_active) {
       if (strcmp(proto, server->proto) == 0 &&
           semver_can_use(version, &server->version)) {
-        return i;
+        return server;
       }
     } else if (first_inactive < 0) {
       first_inactive = i;
@@ -252,10 +333,11 @@ int fork_server(const char *proto, struct semver *version,
 
   if (first_inactive < 0) {
     fprintf(err,
-            "Cannot fork server for '%s' because max number of servers are in "
+            "Cannot fork server for '%s' because max number of servers "
+            "are in "
             "use\n",
             proto);
-    return -1;
+    return NULL;
   }
 
   int root_index = -1;
@@ -291,8 +373,9 @@ int fork_server(const char *proto, struct semver *version,
       if (semver_can_use(version, &server_version)) {
         root_index = i;
 
-        int len = MIN(entry->d_namlen, sizeof(version_str));
+        int len = MIN(entry->d_namlen, sizeof(version_str) - 1);
         strncpy(version_str, entry->d_name, len);
+        version_str[len] = '\0';
 
         break;
       }
@@ -302,7 +385,7 @@ int fork_server(const char *proto, struct semver *version,
   if (root_index == -1) {
     fprintf(err, "No compatible server found for protocol %s (%u.%u.%u)\n",
             proto, version->major, version->minor, version->patch);
-    return -1;
+    return NULL;
   }
 
   path_type config;
@@ -312,8 +395,15 @@ int fork_server(const char *proto, struct semver *version,
 
   FILE *config_file = fopen(config, "r");
   if (config_file == NULL) {
-    fprintf(err, "Could not open config file %s\n", config);
-    return -1;
+    char cwd[MAXPATHLEN + 1];
+    getcwd(cwd, MAXPATHLEN);
+    cwd[MAXPATHLEN] = 0;
+
+    fprintf(err,
+            "Could not open config file '%s' (filename len=%lu, cwd='%s')\n",
+            config, strlen(config), cwd);
+    perror("fopen");
+    return NULL;
   }
 
   int fno = fileno(config_file);
@@ -321,13 +411,13 @@ int fork_server(const char *proto, struct semver *version,
   if (fstat(fno, &config_stat) == -1) {
     perror("stat");
     fprintf(err, "Failed to get stat for file %s\n", config);
-    return -1;
+    return NULL;
   }
 
   char buf[4096];
   if (config_stat.st_size > sizeof(buf)) {
     fprintf(err, "config file '%s' too big (max 4Kb)\n", config);
-    return -1;
+    return NULL;
   }
 
   fread(buf, 1, config_stat.st_size, config_file);
@@ -337,13 +427,13 @@ int fork_server(const char *proto, struct semver *version,
   if (!json) {
     fprintf(err, "Failed to parse JSON file '%s': %s\n", config,
             cJSON_GetErrorPtr());
-    return -1;
+    return NULL;
   }
 
   if (!cJSON_IsObject(json)) {
     fprintf(err, "Top level JSON object in file '%s' is not a JSON object.\n",
             config);
-    return -1;
+    return NULL;
   }
 
   // TODO validate config version
@@ -351,25 +441,25 @@ int fork_server(const char *proto, struct semver *version,
   cJSON *exec_value = cJSON_GetObjectItemCaseSensitive(json, "exec");
   if (exec_value == NULL) {
     fprintf(err, "Config file '%s' is missing 'exec' object key.\n", config);
-    return -1;
+    return NULL;
   }
 
   if (!cJSON_IsArray(exec_value)) {
     fprintf(err, "'exec' is not an array in file '%s'\n", config);
-    return -1;
+    return NULL;
   }
 
   int array_len = cJSON_GetArraySize(exec_value);
   if (array_len < 1) {
     fprintf(err, "'exec' array is empty in file '%s'\n", config);
-    return -1;
+    return NULL;
   }
 
   if (array_len > 255) {
     fprintf(err,
             "'exec' array has more than max (255) arguments in file '%s'\n",
             config);
-    return -1;
+    return NULL;
   }
 
   typedef char *arg_type;
@@ -378,9 +468,11 @@ int fork_server(const char *proto, struct semver *version,
   for (int i = 0; i < array_len; ++i) {
     cJSON *arg_val = cJSON_GetArrayItem(exec_value, i);
     if (!cJSON_IsString(arg_val)) {
-      fprintf(err, "'exec' item at index '%d' is not a string in file '%s'\n",
+      fprintf(err,
+              "'exec' item at index '%d' is not a string in "
+              "file '%s'\n",
               i, config);
-      return -1;
+      return NULL;
     }
 
     argv[i] = cJSON_GetStringValue(arg_val);
@@ -391,7 +483,7 @@ int fork_server(const char *proto, struct semver *version,
   int sockets[2];
   if (unix_socketpair(SOCK_STREAM, sockets) == -1) {
     perror("unix_socketpair");
-    return -1;
+    return NULL;
   }
 
   int child = sockets[0];
@@ -404,9 +496,13 @@ int fork_server(const char *proto, struct semver *version,
     exit(child_main(child_parent, argv));
   } else if (pid == -1) {
     perror("fork");
-    return -1;
+    return NULL;
   }
   // else parent process (load balancer)
+
+  fprintf(stderr, "Forked server '%s' (%u.%u.%u) with pid %d\n", proto,
+          server_version.major, server_version.minor, server_version.patch,
+          pid);
 
   close(child_parent);
   cJSON_Delete(json);
@@ -418,5 +514,5 @@ int fork_server(const char *proto, struct semver *version,
   memcpy(&server->version, &server_version, sizeof(struct semver));
   strncpy(server->proto, proto, sizeof(server->proto));
 
-  return first_inactive;
+  return server;
 }
