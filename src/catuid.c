@@ -132,7 +132,7 @@ int main(int argc, const char **argv) {
       socklen_t client_addr_len = 0;
       int conn = accept(sock, &client_addr, &client_addr_len);
 
-      if (fcntl(conn, F_SETFL, 0)) {
+      if (fcntl(conn, F_SETFL, 0) == -1) {
         perror("fcntl clear flags");
         continue;
       }
