@@ -1,6 +1,8 @@
 #include "catui_server.h"
-#include "msgstream.h"
-#include "unixsocket.h"
+
+#include <msgstream.h>
+#include <unixsocket.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

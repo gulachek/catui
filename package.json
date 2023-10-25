@@ -11,8 +11,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "glob": "^10.3.10",
-    "iheartmake": "^0.4.0",
-    "iheartmake-c": "^0.1.0"
+    "esmakefile": "^0.5.0",
+    "esmakefile-c": "^0.2.0",
+    "glob": "^10.3.10"
   }
 }

@@ -36,12 +36,12 @@ int catui_connect(const char *proto, const char *semver, FILE *err) {
 
   int sock = unix_socket(SOCK_STREAM);
   if (sock == -1) {
-    fprintf(err, "Failed to allocate unix_socket");
+    fprintf(err, "Failed to allocate unix_socket\n");
     return -1;
   }
 
   if (unix_connect(sock, addr) == -1) {
-    fprintf(err, "Failed to connect to %s", addr);
+    fprintf(err, "Failed to connect to %s\n", addr);
     return -1;
   }
 

@@ -1,41 +1,42 @@
-#include "buffer.h"
 #include "catui_server.h"
+#include <msgstream.h>
 #include <stdio.h>
+#include <unistd.h>
 
 int main(int argc, char **argv) {
-  char err_bytes[1024];
-  buffer err = MAKEBUFA(err_bytes);
+  fprintf(stderr, "Starting echo_server...\n");
 
-  int lb = catui_server_fd(&err);
+  int lb = catui_server_fd(stderr);
   if (lb == -1) {
-    fprintf(stderr, "%s\n", err_bytes);
+    fprintf(stderr, "Failed to acquire load balancer connection\n");
     return 1;
   }
 
-  int con = catui_server_accept(lb, &err);
+  fprintf(stderr, "Load balancer at descriptor %d\n", lb);
+
+  int con = catui_server_accept(lb, stderr);
   if (con == -1) {
-    fprintf(stderr, "%s\n", err_bytes);
     return -1;
   }
 
-  if (catui_server_ack(con, &err) == -1) {
-    fprintf(stderr, "%s\n", err_bytes);
+  fprintf(stderr, "Accepted connection at descriptor %d\n", con);
+
+  if (catui_server_ack(con, stderr) == -1) {
     return -1;
   }
 
-  FILE *pCon = fdopen(con, "r+");
-  if (!pCon) {
-    fprintf(stderr, "Failed to open stream for connection\n");
-    return -1;
+  fprintf(stderr, "Sent ack\n");
+
+  char buf[1024];
+  msgstream_size nread = 0;
+  while ((nread = msgstream_recv(con, buf, sizeof(buf), stderr)) >= 0) {
+    msgstream_send(con, buf, sizeof(buf), nread, stderr);
   }
 
-  char buf[512];
-  if (!fgets(buf, sizeof(buf), pCon)) {
-    fclose(pCon);
+  if (nread == -1) {
+    perror("read");
     return 1;
   }
 
-  fputs(buf, pCon);
-  fclose(pCon);
   return 0;
 }

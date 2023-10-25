@@ -1,5 +1,5 @@
-import { cli, Path } from "iheartmake";
-import { platformCompiler, C } from "iheartmake-c";
+import { cli, Path } from "esmakefile";
+import { platformCompiler, C } from "esmakefile-c";
 
 cli((book) => {
   const c = new C(platformCompiler(), {
@@ -47,13 +47,13 @@ cli((book) => {
   c.addExecutable({
     name: "echo_app",
     src: ["test/echo_app.c"],
-    link: [catui],
+    link: [catui, msgstream],
   });
 
   c.addExecutable({
     name: "echo_server",
     src: ["test/echo_server.c"],
-    link: [catuiServer],
+    link: [catuiServer, msgstream],
   });
 
   const catuid = Path.build("catuid");
