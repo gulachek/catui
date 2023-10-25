@@ -45,6 +45,26 @@ void sig_interrupt_handler(int signo) {
   }
 }
 
+void sig_child_handler(int signo) {
+  int status;
+  pid_t pid = wait(&status);
+  if (pid == -1) {
+    perror("sig_child_handler:wait");
+    return;
+  }
+
+  if (WIFEXITED(status)) {
+    fprintf(stderr, "Process %d exited with status %d\n", pid,
+            WEXITSTATUS(status));
+  } else if (WIFSIGNALED(status)) {
+    fprintf(stderr, "Process %d exited with signal %d\n", pid,
+            WTERMSIG(status));
+  } else if (WIFSTOPPED(status)) {
+    fprintf(stderr, "Process %d paused with signal %d\n", pid,
+            WSTOPSIG(status));
+  }
+}
+
 int child_main(int sock, char **argv) {
   char buf[16];
   snprintf(buf, sizeof(buf), "%d", sock);
@@ -77,6 +97,7 @@ int main(int argc, const char **argv) {
   }
 
   signal(SIGINT, sig_interrupt_handler);
+  signal(SIGCHLD, sig_child_handler);
 
   struct server_entry servers[NSERVERS] = {};
   char search_paths[32][MAXPATHLEN] = {};
@@ -109,6 +130,9 @@ int main(int argc, const char **argv) {
   }
 
   int exit_code = 0;
+  sigset_t child_sigmask;
+  sigemptyset(&child_sigmask);
+  sigaddset(&child_sigmask, SIGCHLD);
 
   while (!sig_interrupted) {
     fd_set readfds;
@@ -127,10 +151,14 @@ int main(int argc, const char **argv) {
       max_fd = MAX(max_fd, server->sock_fd);
     }
 
+    sigprocmask(SIG_BLOCK, &child_sigmask, NULL);
+
     if (select(max_fd + 1, &readfds, NULL, NULL, NULL) == -1) {
       perror("select");
       return 1;
     }
+
+    sigprocmask(SIG_UNBLOCK, &child_sigmask, NULL);
 
     if (FD_ISSET(sock, &readfds)) {
       struct sockaddr client_addr;
@@ -257,6 +285,8 @@ int main(int argc, const char **argv) {
           continue;
         } else {
           close(server->sock_fd);
+          fprintf(stderr, "Connection with server '%s' (pid=%d) closed\n",
+                  server->proto, server->pid);
           memset(server, 0, sizeof(struct server_entry));
         }
       }
@@ -400,7 +430,8 @@ struct server_entry *fork_server(const char *proto, struct semver *version,
     cwd[MAXPATHLEN] = 0;
 
     fprintf(err,
-            "Could not open config file '%s' (filename len=%lu, cwd='%s')\n",
+            "Could not open config file '%s' (filename len=%lu, "
+            "cwd='%s')\n",
             config, strlen(config), cwd);
     perror("fopen");
     return NULL;
@@ -431,7 +462,9 @@ struct server_entry *fork_server(const char *proto, struct semver *version,
   }
 
   if (!cJSON_IsObject(json)) {
-    fprintf(err, "Top level JSON object in file '%s' is not a JSON object.\n",
+    fprintf(err,
+            "Top level JSON object in file '%s' is not a JSON "
+            "object.\n",
             config);
     return NULL;
   }
@@ -457,7 +490,8 @@ struct server_entry *fork_server(const char *proto, struct semver *version,
 
   if (array_len > 255) {
     fprintf(err,
-            "'exec' array has more than max (255) arguments in file '%s'\n",
+            "'exec' array has more than max (255) arguments in "
+            "file '%s'\n",
             config);
     return NULL;
   }
