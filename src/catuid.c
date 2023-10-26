@@ -182,7 +182,7 @@ int main(int argc, const char **argv) {
       char buf[1024];
 
       msgstream_size nread = msgstream_recv(conn, buf, sizeof(buf), stderr);
-      if (nread == -1) {
+      if (nread < 0) {
         fprintf(stderr, "failed to read initial message from connection\n");
         close(conn);
         break;

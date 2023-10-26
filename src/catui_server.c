@@ -46,7 +46,7 @@ int catui_server_accept(int fd, FILE *err) {
 
 int catui_server_ack(int fd, FILE *err) {
   uint8_t zero = 0;
-  if (msgstream_send(fd, &zero, 1024, 0, err) == -1) {
+  if (msgstream_send(fd, &zero, 1024, 0, err) < 0) {
     fprintf(err, "Failed to send catui ack\n");
     return -1;
   }
@@ -64,7 +64,7 @@ int catui_server_nack(int fd, char *err_to_send, FILE *err) {
     return -1;
   }
 
-  if (msgstream_send(fd, err_json, sizeof(err_json), n, err) == -1) {
+  if (msgstream_send(fd, err_json, sizeof(err_json), n, err) < 0) {
     fprintf(err, "Failed to send catui nack\n");
     return -1;
   }

@@ -1,6 +1,6 @@
 #include "catui.h"
-#include "msgstream.h"
 #include "unixsocket.h"
+#include <msgstream.h>
 
 #include <assert.h>
 #include <stdint.h>
@@ -52,19 +52,24 @@ int catui_connect(const char *proto, const char *semver, FILE *err) {
       "{\"catui-version\":\"0.1.0\",\"protocol\":\"%s\",\"version\":\"%s\"}",
       proto, semver);
 
-  if (msgstream_send(sock, buf, sizeof(buf), n, err) == -1) {
+  msgstream_size msg_size = msgstream_send(sock, buf, sizeof(buf), n, err);
+  if (msg_size < 0) {
     fprintf(err, "Failed to send handshake request\n");
     return -1;
   }
 
-  msgstream_size nread = msgstream_recv(sock, buf, sizeof(buf), err);
-  if (nread == -1) {
+  msg_size = msgstream_recv(sock, buf, sizeof(buf), err);
+  if (msg_size < 0) {
+    if (msg_size == MSGSTREAM_EOF) {
+      fprintf(err, "Unexpected eof\n");
+    }
+
     fprintf(err, "Failed to read ack response\n");
     return -1;
   }
 
   // zero length error message means success
-  if (nread != 0) {
+  if (msg_size != 0) {
     fprintf(err, "Received a nack response from server\n");
     return -1;
   }
