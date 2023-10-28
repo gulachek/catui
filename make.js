@@ -1,6 +1,6 @@
 import { cli, Path } from "esmakefile";
 import { platformCompiler, C } from "esmakefile-c";
-import { writeFile } from "node:fs/promises";
+import { writeFile, rm } from "node:fs/promises";
 
 cli((book) => {
   const c = new C(platformCompiler(), {
@@ -79,4 +79,16 @@ cli((book) => {
   });
 
   book.add("all", [compileCommands, echoApp, echoServer, catuid, echoConfig]);
+
+  book.add("serve", async (args) => {
+    const [server, sock] = args.absAll(catuid, Path.build("test.sock"));
+
+    try {
+      await rm(sock, { force: true });
+    } catch (ex) {
+      args.logStream.write(ex.message);
+    }
+
+    return args.spawn(server, [sock]);
+  });
 });
