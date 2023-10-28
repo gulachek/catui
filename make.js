@@ -1,5 +1,6 @@
 import { cli, Path } from "esmakefile";
 import { platformCompiler, C } from "esmakefile-c";
+import { writeFile } from "node:fs/promises";
 
 cli((book) => {
   const c = new C(platformCompiler(), {
@@ -63,5 +64,19 @@ cli((book) => {
   const compileCommands = Path.build("compile_commands.json");
   c.addCompileCommands();
 
-  book.add("all", [compileCommands, echoApp, echoServer, catuid]);
+  const echoVersion = "1.0.0";
+  const echoConfig = Path.build(
+    `catui/com.example.echo/${echoVersion}/config.json`
+  );
+
+  book.add(echoConfig, async (args) => {
+    const [config, server] = args.absAll(echoConfig, echoServer);
+    const json = JSON.stringify({
+      exec: [server],
+    });
+
+    await writeFile(config, json, "utf8");
+  });
+
+  book.add("all", [compileCommands, echoApp, echoServer, catuid, echoConfig]);
 });

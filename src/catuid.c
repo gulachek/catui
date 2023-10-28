@@ -101,7 +101,7 @@ int main(int argc, const char **argv) {
 
   struct server_entry servers[NSERVERS] = {};
   char search_paths[32][MAXPATHLEN] = {};
-  strncpy(search_paths[0], "./catui", MAXPATHLEN);
+  strncpy(search_paths[0], "./build/catui", MAXPATHLEN);
 
   int sock = unix_socket(SOCK_STREAM);
   lb_socket = sock;
