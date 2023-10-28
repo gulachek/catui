@@ -65,8 +65,9 @@ cli((book) => {
   c.addCompileCommands();
 
   const echoVersion = "1.0.0";
-  const echoConfig = Path.build(
-    `catui/com.example.echo/${echoVersion}/config.json`
+  const catuiDir = Path.build("catui");
+  const echoConfig = catuiDir.join(
+    `com.example.echo/${echoVersion}/config.json`
   );
 
   book.add(echoConfig, async (args) => {
@@ -81,7 +82,11 @@ cli((book) => {
   book.add("all", [compileCommands, echoApp, echoServer, catuid, echoConfig]);
 
   book.add("serve", async (args) => {
-    const [server, sock] = args.absAll(catuid, Path.build("test.sock"));
+    const [server, sock, search] = args.absAll(
+      catuid,
+      Path.build("test.sock"),
+      catuiDir
+    );
 
     try {
       await rm(sock, { force: true });
@@ -89,6 +94,6 @@ cli((book) => {
       args.logStream.write(ex.message);
     }
 
-    return args.spawn(server, [sock]);
+    return args.spawn(server, ["-s", sock, "-p", search]);
   });
 });

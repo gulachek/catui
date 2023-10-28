@@ -89,19 +89,33 @@ struct server_entry *fork_server(const char *proto, struct semver *version,
                                  path_type *paths, int npaths, FILE *err);
 
 #define NSERVERS 128
+#define NPATHS 32
 
-int main(int argc, const char **argv) {
+int main(int argc, char *const argv[]) {
   const char *addr_path = default_addr_path();
-  if (argc > 1) {
-    addr_path = argv[1];
+
+  char search_paths[NPATHS][MAXPATHLEN] = {};
+  int npaths = 0;
+
+  int ch;
+  while ((ch = getopt(argc, argv, "s:p:")) != -1) {
+    switch (ch) {
+    case 's':
+      addr_path = optarg;
+      break;
+    case 'p':
+      strncpy(search_paths[npaths], optarg, MAXPATHLEN);
+      npaths += 1;
+      break;
+    default:
+      break;
+    }
   }
 
   signal(SIGINT, sig_interrupt_handler);
   signal(SIGCHLD, sig_child_handler);
 
   struct server_entry servers[NSERVERS] = {};
-  char search_paths[32][MAXPATHLEN] = {};
-  strncpy(search_paths[0], "./build/catui", MAXPATHLEN);
 
   int sock = unix_socket(SOCK_STREAM);
   lb_socket = sock;
@@ -255,7 +269,7 @@ int main(int argc, const char **argv) {
       }
 
       struct server_entry *server = fork_server(
-          proto, &version, servers, NSERVERS, search_paths, 1, stderr);
+          proto, &version, servers, NSERVERS, search_paths, npaths, stderr);
 
       cJSON_Delete(json);
 

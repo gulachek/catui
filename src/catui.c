@@ -61,7 +61,7 @@ int catui_connect(const char *proto, const char *semver, FILE *err) {
   msg_size = msgstream_recv(sock, buf, sizeof(buf), err);
   if (msg_size < 0) {
     if (msg_size == MSGSTREAM_EOF) {
-      fprintf(err, "Unexpected eof\n");
+      fprintf(err, "Encountered EOF\n");
     }
 
     fprintf(err, "Failed to read ack response\n");
