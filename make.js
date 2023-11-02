@@ -29,6 +29,8 @@ cli((book) => {
     link: [unixsocket, msgstream],
   });
 
+  book.add("catui", catui);
+
   const catuiServer = c.addLibrary({
     name: "catui-server",
     version: "0.1.0",
