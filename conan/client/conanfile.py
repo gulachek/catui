@@ -1,6 +1,7 @@
 from conan import ConanFile
-from conan.tools.files import chdir, copy
+from conan.tools.files import chdir, copy, mkdir
 from os.path import join
+from conan.tools.gnu import PkgConfigDeps
 
 class BasicConanfile(ConanFile):
     name = "catui"
@@ -13,14 +14,19 @@ class BasicConanfile(ConanFile):
         self.run("git clone git@github.com:gulachek/catui.git")
 
     def requirements(self):
-        pass
+        self.requires('msgstream/0.2.0')
+        self.requires('unixsocket/0.1.0')
 
     def build_requirements(self):
         # TODO - node and npm install?
         pass
 
     def generate(self):
-        pass
+        pc = PkgConfigDeps(self)
+        d = 'catui/pkgconfig'
+        mkdir(self, d)
+        with chdir(self, d):
+            pc.generate()
 
     # This method is used to build the source code of the recipe using the desired commands.
     def build(self):
