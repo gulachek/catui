@@ -38,6 +38,8 @@ cli((book) => {
     link: [unixsocket, msgstream],
   });
 
+  book.add("catui-server", catuiServer);
+
   // Load balancer implementation
   c.addExecutable({
     name: "catuid",
