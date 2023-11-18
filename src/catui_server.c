@@ -46,12 +46,12 @@ int catui_server_accept(int fd, FILE *err) {
   return con;
 }
 
-msgstream_size catui_server_encode_ack(void *buf, size_t buf_size, FILE *err) {
+int16_t catui_server_encode_ack(void *buf, size_t buf_size, FILE *err) {
   return 0;
 }
 
-msgstream_size catui_server_encode_nack(void *buf, size_t buf_size,
-                                        char *err_to_send, FILE *err) {
+int16_t catui_server_encode_nack(void *buf, size_t buf_size, char *err_to_send,
+                                 FILE *err) {
   cJSON *obj = cJSON_CreateObject();
   if (!obj) {
     if (err)
@@ -82,9 +82,9 @@ msgstream_size catui_server_encode_nack(void *buf, size_t buf_size,
   return strlen(buf);
 }
 
-int catui_server_ack(int fd, FILE *err) {
+int16_t catui_server_ack(int fd, FILE *err) {
   char ack[CATUI_ACK_SIZE];
-  msgstream_size n = catui_server_encode_ack(ack, sizeof(ack), err);
+  int16_t n = catui_server_encode_ack(ack, sizeof(ack), err);
 
   if (n < 0)
     return -1;
@@ -97,9 +97,9 @@ int catui_server_ack(int fd, FILE *err) {
   return 0;
 }
 
-int catui_server_nack(int fd, char *err_to_send, FILE *err) {
+int16_t catui_server_nack(int fd, char *err_to_send, FILE *err) {
   char err_json[CATUI_ACK_SIZE];
-  msgstream_size n =
+  int16_t n =
       catui_server_encode_nack(err_json, sizeof(err_json), err_to_send, err);
 
   if (n < 0)
