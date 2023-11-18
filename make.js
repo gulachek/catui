@@ -35,7 +35,7 @@ cli((book) => {
     name: "catui-server",
     version: "0.1.0",
     src: ["src/catui_server.c"],
-    link: [unixsocket, msgstream],
+    link: [unixsocket, msgstream, catui, libcjson],
   });
 
   book.add("catui-server", catuiServer);
