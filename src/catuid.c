@@ -195,14 +195,16 @@ int main(int argc, char *const argv[]) {
 
       char buf[1024];
 
-      msgstream_size nread = msgstream_recv(conn, buf, sizeof(buf), stderr);
-      if (nread < 0) {
-        fprintf(stderr, "failed to read initial message from connection\n");
+      size_t msg_size;
+      int msg_ec = msgstream_fd_recv(conn, buf, sizeof(buf), &msg_size);
+      if (msg_ec) {
+        fprintf(stderr, "failed to read initial message from connection: %s\n",
+                msgstream_errstr(msg_ec));
         close(conn);
         break;
       }
 
-      cJSON *json = cJSON_ParseWithLength(buf, nread);
+      cJSON *json = cJSON_ParseWithLength(buf, msg_size);
 
       if (!json) {
         // TODO - inform invalid json

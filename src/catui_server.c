@@ -1,6 +1,6 @@
 #include "catui_server.h"
 #include "catui.h"
-#include "msgstream.h"
+#include <msgstream.h>
 
 #include <unixsocket.h>
 
@@ -56,7 +56,7 @@ int16_t catui_server_encode_nack(void *buf, size_t buf_size, char *err_to_send,
   if (!obj) {
     if (err)
       fprintf(err, "Failed to create nack json object\n");
-    return MSGSTREAM_ERR;
+    return -1;
   }
 
   cJSON *err_str = cJSON_AddStringToObject(obj, "error", err_to_send);
@@ -66,7 +66,7 @@ int16_t catui_server_encode_nack(void *buf, size_t buf_size, char *err_to_send,
               "Failed to create json string for 'error' property on nack with "
               "message '%s'\n",
               err_to_send);
-    return MSGSTREAM_ERR;
+    return -1;
   }
 
   if (!cJSON_PrintPreallocated(obj, buf, buf_size, 0)) {
@@ -75,7 +75,7 @@ int16_t catui_server_encode_nack(void *buf, size_t buf_size, char *err_to_send,
           err,
           "Failed to encode nack with message '%s' in buffer of size '%lu'\n",
           err_to_send, buf_size);
-    return MSGSTREAM_ERR;
+    return -1;
   }
 
   cJSON_Delete(obj);
@@ -89,7 +89,7 @@ int16_t catui_server_ack(int fd, FILE *err) {
   if (n < 0)
     return -1;
 
-  if (msgstream_send(fd, ack, CATUI_ACK_SIZE, n, err) < 0) {
+  if (msgstream_fd_send(fd, ack, CATUI_ACK_SIZE, n)) {
     fprintf(err, "Failed to send catui ack\n");
     return -1;
   }
@@ -105,7 +105,7 @@ int16_t catui_server_nack(int fd, char *err_to_send, FILE *err) {
   if (n < 0)
     return -1;
 
-  if (msgstream_send(fd, err_json, sizeof(err_json), n, err) < 0) {
+  if (msgstream_fd_send(fd, err_json, sizeof(err_json), n)) {
     fprintf(err, "Failed to send catui nack\n");
     return -1;
   }

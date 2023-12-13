@@ -52,19 +52,15 @@ int catui_connect(const char *proto, const char *semver, FILE *err) {
       "{\"catui-version\":\"0.1.0\",\"protocol\":\"%s\",\"version\":\"%s\"}",
       proto, semver);
 
-  msgstream_size msg_size = msgstream_send(sock, buf, sizeof(buf), n, err);
-  if (msg_size < 0) {
+  if (msgstream_fd_send(sock, buf, sizeof(buf), n)) {
     fprintf(err, "Failed to send handshake request\n");
     return -1;
   }
 
-  msg_size = msgstream_recv(sock, buf, sizeof(buf), err);
-  if (msg_size < 0) {
-    if (msg_size == MSGSTREAM_EOF) {
-      fprintf(err, "Encountered EOF\n");
-    }
-
-    fprintf(err, "Failed to read ack response\n");
+  size_t msg_size;
+  int ec = msgstream_fd_recv(sock, buf, sizeof(buf), &msg_size);
+  if (ec) {
+    fprintf(err, "Failed to read ack response: %s\n", msgstream_errstr(ec));
     return -1;
   }
 

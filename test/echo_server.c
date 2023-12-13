@@ -24,8 +24,9 @@ int main(int argc, char **argv) {
   fprintf(stderr, "Load balancer at descriptor %d\n", lb);
 
   struct client_entry clients[NCLIENTS] = {};
+  int running = 1;
 
-  while (1) {
+  while (running) {
     fd_set readset;
     FD_ZERO(&readset);
 
@@ -80,15 +81,27 @@ int main(int argc, char **argv) {
       char buf[1024];
       int con = client->fd;
 
-      msgstream_size nread = msgstream_recv(con, buf, sizeof(buf), stderr);
+      size_t msg_size;
+      int ec = msgstream_fd_recv(con, buf, sizeof(buf), &msg_size);
 
-      if (nread >= 0) {
-        nread = msgstream_send(con, buf, sizeof(buf), nread, stderr);
-      }
-
-      if (nread < 0) {
+      if (ec) {
         close(con);
         memset(client, 0, sizeof(struct client_entry));
+      } else {
+        ec = msgstream_fd_send(con, buf, sizeof(buf), msg_size);
+        if (ec && ec != MSGSTREAM_EOF) {
+          fprintf(stderr, "Failed to send msg: %s\n", msgstream_errstr(ec));
+          return 1;
+        }
+      }
+    }
+
+    running = 0;
+    for (int i = 0; i < NCLIENTS; ++i) {
+      struct client_entry *client = &clients[i];
+      if (client->is_active) {
+        running = 1;
+        break;
       }
     }
   }

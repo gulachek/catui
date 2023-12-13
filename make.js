@@ -14,14 +14,6 @@ cli((book) => {
 
   book.add("all", []);
 
-  /*
-  const catui = linkLibrary(
-    book,
-    "libcatui.dylib",
-    [buffer, catuiObj],
-    [unixsocket, msgstream]
-  );
-	*/
   const catui = c.addLibrary({
     name: "catui",
     version: "0.1.0",

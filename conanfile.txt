@@ -1,6 +1,6 @@
 [requires]
 unixsocket/0.1.0
-msgstream/0.2.1
+msgstream/0.3.0
 cjson/1.7.16
 
 [generators]

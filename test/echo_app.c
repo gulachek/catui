@@ -18,10 +18,16 @@ int main(int argc, char **argv) {
   buf[bufsz] = 0;
 
   while (fgets(buf, bufsz, stdin)) {
-    if (msgstream_send(fd, buf, bufsz, strlen(buf), stderr) == -1)
-      return 1;
+    int ec;
 
-    if (msgstream_recv(fd, buf, bufsz, stderr) < 0) {
+    if ((ec = msgstream_fd_send(fd, buf, bufsz, strlen(buf)))) {
+      fprintf(stderr, "msgstream_fd_send: %s\n", msgstream_errstr(ec));
+      return 1;
+    }
+
+    size_t msg_size;
+    if ((ec = msgstream_fd_recv(fd, buf, bufsz, &msg_size))) {
+      fprintf(stderr, "msgstream_fd_recv: %s\n", msgstream_errstr(ec));
       return 1;
     }
 
