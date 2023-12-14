@@ -11,7 +11,8 @@ class BasicConanfile(ConanFile):
     homepage = "https://gulachek.com"
 
     def source(self):
-        self.run("git clone git@github.com:gulachek/catui.git")
+        # TODO - download copy/archive instead of all history
+        self.run("git clone https://github.com/gulachek/catui.git")
 
     def requirements(self):
         self.requires('msgstream/0.3.0')
