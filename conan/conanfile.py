@@ -4,9 +4,9 @@ from os.path import join
 from conan.tools.gnu import PkgConfigDeps
 
 class BasicConanfile(ConanFile):
-    name = "catui-server"
-    version = "0.1.1"
-    description = "IPC based server library"
+    name = "catui"
+    version = "0.1.2"
+    description = "IPC based application library"
     license = "MIT"
     homepage = "https://gulachek.com"
 
@@ -16,6 +16,7 @@ class BasicConanfile(ConanFile):
     def requirements(self):
         self.requires('msgstream/0.2.1')
         self.requires('unixsocket/0.1.0')
+        self.requires('cjson/1.7.16')
 
     def build_requirements(self):
         # TODO - node and npm install?
@@ -32,14 +33,14 @@ class BasicConanfile(ConanFile):
     def build(self):
         with chdir(self, 'catui'):
             self.run("npm install")
-            self.run("node make.js catui-server")
+            self.run("node make.mjs catui")
 
     def package(self):
         d = join(self.source_folder, 'catui')
         build = join(d, "build")
         include = join(d, "include")
         copy(self, "*.h", include, join(self.package_folder, "include"))
-        copy(self, "libcatui-server.dylib", build, join(self.package_folder, "lib"))
+        copy(self, "libcatui.dylib", build, join(self.package_folder, "lib"))
 
     def package_info(self):
-        self.cpp_info.libs = ["catui-server"]
+        self.cpp_info.libs = ["catui"]

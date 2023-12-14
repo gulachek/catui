@@ -17,27 +17,18 @@ cli((book) => {
   const catui = c.addLibrary({
     name: "catui",
     version: "0.1.0",
-    src: ["src/catui.c"],
-    link: [unixsocket, msgstream],
+    src: ["src/catui.c", "src/catui_server.c"],
+    link: [unixsocket, msgstream, libcjson],
   });
 
   book.add("catui", catui);
-
-  const catuiServer = c.addLibrary({
-    name: "catui-server",
-    version: "0.1.0",
-    src: ["src/catui_server.c"],
-    link: [unixsocket, msgstream, catui, libcjson],
-  });
-
-  book.add("catui-server", catuiServer);
 
   // Load balancer implementation
   c.addExecutable({
     name: "catuid",
     version: "0.1.0",
     src: ["src/catuid.c"],
-    link: [unixsocket, libcjson, msgstream, catuiServer],
+    link: [unixsocket, libcjson, msgstream, catui],
   });
 
   // Testing
@@ -50,7 +41,7 @@ cli((book) => {
   c.addExecutable({
     name: "echo_server",
     src: ["test/echo_server.c"],
-    link: [catuiServer, msgstream],
+    link: [catui, msgstream],
   });
 
   const catuid = Path.build("catuid");
