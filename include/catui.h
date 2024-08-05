@@ -7,9 +7,27 @@
 
 #define CATUI_ACK_SIZE 1024
 
+/**
+ * Connect to a catui server with the given protocol and version
+ * @param proto The device communication protocol to connect to
+ * @param semver The version of the protocol required for communication
+ * @param err Pointer to a stream that will have an error written if present
+ * @returns A file descriptor of the connection on success, -1 on failure
+ */
 int catui_connect(const char *proto, const char *semver, FILE *err);
 
+/**
+ * Looks up the catui load balancer's file descriptor, if available
+ * @param err A stream that will have an error message written if applicable
+ * @returns A file descriptor on success, -1 on failure
+ */
 int catui_server_fd(FILE *err);
+
+/**
+ * Accepts a connection forwarded from the catui load balancer
+ * @param err A stream that will have an error message written if applicable
+ * @returns A file descriptor on success, -1 on failure
+ */
 int catui_server_accept(int fd, FILE *err);
 
 /**
@@ -34,7 +52,21 @@ int16_t catui_server_encode_ack(void *buf, size_t buf_size, FILE *err);
 int16_t catui_server_encode_nack(void *buf, size_t buf_size, char *err_to_send,
                                  FILE *err);
 
+/**
+ * Send an ack message to a file descriptor
+ * @param fd The file descriptor to write to
+ * @param err A stream that will have an error message written if applicable
+ * @returns size of message if successful, < 0 on error
+ */
 int16_t catui_server_ack(int fd, FILE *err);
+
+/**
+ * Send a nack message to a file descriptor
+ * @param fd The file descriptor to write to
+ * @param err_to_send The error message to include in the nack message
+ * @param err A stream that will have an error message written if applicable
+ * @returns size of message if successful, < 0 on error
+ */
 int16_t catui_server_nack(int fd, char *err_to_send, FILE *err);
 
 #endif
