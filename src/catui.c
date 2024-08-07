@@ -3,6 +3,7 @@
 #include <msgstream.h>
 
 #include <assert.h>
+#include <cjson/cJSON.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,7 +46,7 @@ int catui_connect(const char *proto, const char *semver, FILE *err) {
     return -1;
   }
 
-  char buf[1024];
+  char buf[CATUI_CONNECT_SIZE];
 
   ssize_t n = snprintf(
       buf, sizeof(buf),
@@ -71,4 +72,56 @@ int catui_connect(const char *proto, const char *semver, FILE *err) {
   }
 
   return sock;
+}
+
+typedef char semver_buf[CATUI_VERSION_SIZE];
+static int semver_encode(const catui_semver *v, char *buf) {
+  int n = snprintf(buf, CATUI_VERSION_SIZE, "%u.%u.%u", v->major, v->minor,
+                   v->patch);
+
+  return 0 <= n && n < CATUI_VERSION_SIZE;
+}
+
+int catui_encode_connect(const catui_connect_request *req, void *buf,
+                         size_t bufsz, size_t *msgsz) {
+  cJSON *obj = cJSON_CreateObject();
+  if (!obj)
+    return 0;
+
+  semver_buf catuiv, protov;
+
+  if (!semver_encode(&req->catui_version, catuiv))
+    return 0;
+
+  if (!semver_encode(&req->version, protov))
+    return 0;
+
+  cJSON *jcatuiv = cJSON_CreateString(catuiv);
+  if (!jcatuiv)
+    return 0;
+
+  cJSON *jproto = cJSON_CreateString(req->protocol);
+  if (!jproto)
+    return 0;
+
+  cJSON *jprotov = cJSON_CreateString(protov);
+  if (!jprotov)
+    return 0;
+
+  if (!cJSON_AddItemToObject(obj, "catui-version", jcatuiv))
+    return 0;
+
+  if (!cJSON_AddItemToObject(obj, "protocol", jproto))
+    return 0;
+
+  if (!cJSON_AddItemToObject(obj, "version", jprotov))
+    return 0;
+
+  if (!cJSON_PrintPreallocated(obj, buf, bufsz, 0))
+    return 0;
+
+  cJSON_free(obj);
+
+  *msgsz = strlen(buf);
+  return 1;
 }
