@@ -15,7 +15,7 @@ class BasicConanfile(ConanFile):
         self.run("git clone https://github.com/gulachek/catui.git")
 
     def requirements(self):
-        self.requires('msgstream/0.3.0')
+        self.requires('msgstream/0.3.1')
         self.requires('unixsocket/0.1.0')
         self.requires('cjson/1.7.16')
 
