@@ -76,10 +76,14 @@ int catui_connect(const char *proto, const char *semver, FILE *err) {
 
 typedef char semver_buf[CATUI_VERSION_SIZE];
 static int semver_encode(const catui_semver *v, char *buf) {
-  int n = snprintf(buf, CATUI_VERSION_SIZE, "%u.%u.%u", v->major, v->minor,
+  int n = snprintf(buf, CATUI_VERSION_SIZE, "%hu.%hu.%hu", v->major, v->minor,
                    v->patch);
 
   return 0 <= n && n < CATUI_VERSION_SIZE;
+}
+
+static int semver_decode(const char *cstr, catui_semver *v) {
+  return sscanf(cstr, "%hu.%hu.%u", &v->major, &v->minor, &v->patch) == 3;
 }
 
 int catui_encode_connect(const catui_connect_request *req, void *buf,
@@ -123,5 +127,48 @@ int catui_encode_connect(const catui_connect_request *req, void *buf,
   cJSON_free(obj);
 
   *msgsz = strlen(buf);
+  return 1;
+}
+
+int CATUI_API catui_decode_connect(const void *buf, size_t msgsz,
+                                   catui_connect_request *req) {
+  cJSON *obj = cJSON_ParseWithLength(buf, msgsz);
+  if (!obj)
+    return 0;
+
+  cJSON *jcatui_version = cJSON_GetObjectItem(obj, "catui-version");
+  if (!jcatui_version)
+    return 0;
+
+  const char *catui_version = cJSON_GetStringValue(jcatui_version);
+  if (!catui_version)
+    return 0;
+
+  if (!semver_decode(catui_version, &req->catui_version))
+    return 0;
+
+  cJSON *jprotocol = cJSON_GetObjectItem(obj, "protocol");
+  if (!jprotocol)
+    return 0;
+
+  const char *protocol = cJSON_GetStringValue(jprotocol);
+  if (!protocol)
+    return 0;
+
+  int n = strlcpy(req->protocol, protocol, CATUI_PROTOCOL_SIZE);
+  if (n < 0 || n >= CATUI_PROTOCOL_SIZE)
+    return 0;
+
+  cJSON *jversion = cJSON_GetObjectItem(obj, "version");
+  if (!jversion)
+    return 0;
+
+  const char *version = cJSON_GetStringValue(jversion);
+  if (!version)
+    return 0;
+
+  if (!semver_decode(version, &req->version))
+    return 0;
+
   return 1;
 }

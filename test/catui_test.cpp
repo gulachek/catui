@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include <array>
+#include <string>
 #include <string_view>
 
 using std::size_t;
@@ -56,7 +57,7 @@ BOOST_AUTO_TEST_CASE(EncodedConnectRequestIsJson) {
   size_t msgsz;
   int ok = catui_encode_connect(&req, buf.data(), buf.size(), &msgsz);
 
-  BOOST_ASSERT(ok);
+  BOOST_REQUIRE(ok);
   std::string_view jmsg{(char *)buf.data(), msgsz};
 
   auto msg = boost::json::parse(jmsg).as_object();
@@ -84,4 +85,25 @@ BOOST_AUTO_TEST_CASE(EncodingToSmallBufFails) {
   int ok = catui_encode_connect(&req, buf.data(), buf.size(), &msgsz);
 
   BOOST_TEST(!ok);
+}
+
+BOOST_AUTO_TEST_CASE(DecodedConnectFromRawJson) {
+  std::string msg =
+      R"({"catui-version": "1.2.3", "protocol": "com.example.test", "version": "4.5.7"  } )";
+
+  catui_connect_request req;
+
+  int ok = catui_decode_connect(msg.data(), msg.size(), &req);
+
+  BOOST_REQUIRE(ok);
+  BOOST_TEST(req.catui_version.major == 1);
+  BOOST_TEST(req.catui_version.minor == 2);
+  BOOST_TEST(req.catui_version.patch == 3);
+
+  std::string_view protocol{req.protocol};
+  BOOST_TEST(protocol == "com.example.test");
+
+  BOOST_TEST(req.version.major == 4);
+  BOOST_TEST(req.version.minor == 5);
+  BOOST_TEST(req.version.patch == 7);
 }

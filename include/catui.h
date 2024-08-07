@@ -119,6 +119,16 @@ typedef struct {
 int CATUI_API catui_encode_connect(const catui_connect_request *req, void *buf,
                                    size_t bufsz, size_t *msgsz);
 
+/**
+ * Decode a connect request
+ * @param[in] buf The buffer containing the encoded bytes
+ * @param[in] msgsz The size of the encoded message
+ * @param[out] req The structure to hold the decoded message
+ * @returns 1 on success, 0 on failure
+ */
+int CATUI_API catui_decode_connect(const void *buf, size_t msgsz,
+                                   catui_connect_request *req);
+
 #ifdef __cplusplus
 }
 #endif
