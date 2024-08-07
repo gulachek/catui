@@ -65,3 +65,23 @@ BOOST_AUTO_TEST_CASE(EncodedConnectRequestIsJson) {
   BOOST_TEST(msg["protocol"] == "com.example.test");
   BOOST_TEST(msg["version"] == "4.5.6");
 }
+
+BOOST_AUTO_TEST_CASE(EncodingToSmallBufFails) {
+  std::array<uint8_t, 50> buf; // doesn't leave enough room
+
+  catui_connect_request req;
+  req.catui_version.major = 1;
+  req.catui_version.minor = 2;
+  req.catui_version.patch = 3;
+
+  strcpy(req.protocol, "com.example.test");
+
+  req.version.major = 4;
+  req.version.minor = 5;
+  req.version.patch = 6;
+
+  size_t msgsz;
+  int ok = catui_encode_connect(&req, buf.data(), buf.size(), &msgsz);
+
+  BOOST_TEST(!ok);
+}
