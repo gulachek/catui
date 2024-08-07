@@ -5,7 +5,7 @@ from conan.tools.gnu import PkgConfigDeps
 
 class BasicConanfile(ConanFile):
     name = "catui"
-    version = "0.1.2"
+    version = "0.1.3"
     description = "IPC based application library"
     license = "MIT"
     homepage = "https://gulachek.com"
