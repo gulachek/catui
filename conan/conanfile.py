@@ -12,7 +12,7 @@ class BasicConanfile(ConanFile):
 
     def source(self):
         # TODO - make this not point to a branch
-        get(self, f"https://github.com/gulachek/catui/archive/refs/heads/v{self.version}.zip")
+        get(self, f"https://github.com/gulachek/catui/archive/refs/heads/v{self.version}.zip", strip_root=True)
 
     def requirements(self):
         self.requires('msgstream/0.3.1')
