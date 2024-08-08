@@ -1,5 +1,5 @@
 from conan import ConanFile
-from conan.tools.files import chdir, copy, mkdir
+from conan.tools.files import chdir, copy, mkdir, get
 from os.path import join
 from conan.tools.gnu import PkgConfigDeps
 
@@ -11,8 +11,8 @@ class BasicConanfile(ConanFile):
     homepage = "https://gulachek.com"
 
     def source(self):
-        # TODO - download copy/archive instead of all history
-        self.run("git clone https://github.com/gulachek/catui.git")
+        # TODO - make this not point to a branch
+        get(self, f"https://github.com/gulachek/catui/archive/refs/heads/v{self.version}.zip")
 
     def requirements(self):
         self.requires('msgstream/0.3.1')
