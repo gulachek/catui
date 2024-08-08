@@ -25,19 +25,18 @@ class BasicConanfile(ConanFile):
 
     def generate(self):
         pc = PkgConfigDeps(self)
-        d = 'catui/pkgconfig'
+        d = 'pkgconfig'
         mkdir(self, d)
         with chdir(self, d):
             pc.generate()
 
     # This method is used to build the source code of the recipe using the desired commands.
     def build(self):
-        with chdir(self, 'catui'):
-            self.run("npm install")
-            self.run("node make.mjs catui")
+        self.run("npm install")
+        self.run("node make.mjs catui")
 
     def package(self):
-        d = join(self.source_folder, 'catui')
+        d = self.source_folder
         build = join(d, "build")
         include = join(d, "include")
         copy(self, "*.h", include, join(self.package_folder, "include"))
