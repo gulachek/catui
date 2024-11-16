@@ -1,4 +1,3 @@
-#include "catui_server.h"
 #include "catui.h"
 #include <msgstream.h>
 
@@ -9,16 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/errno.h>
-
-void fperror(FILE *err, char *s) {
-  if (!err)
-    return;
-  char *msg = strerror(errno);
-  if (s)
-    fprintf(err, "%s: %s\n", s, msg);
-  else
-    fprintf(err, "%s\n", msg);
-}
 
 int catui_server_fd(FILE *err) {
   const char *lb = getenv("CATUI_LOAD_BALANCER_FD");
