@@ -15,7 +15,6 @@
 #include <sys/fcntl.h>
 #include <sys/param.h>
 #include <sys/select.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -117,7 +116,7 @@ int main(int argc, char *const argv[]) {
 
   struct server_entry servers[NSERVERS] = {};
 
-  int sock = unix_socket(SOCK_STREAM);
+  int sock = unix_socket();
   lb_socket = sock;
   if (sock == -1) {
     perror("socket");
@@ -128,7 +127,7 @@ int main(int argc, char *const argv[]) {
     perror("bind");
   }
 
-  if (listen(sock, 32) == -1) {
+  if (unix_listen(sock, 32) == -1) {
     perror("listen");
     return 1;
   }
@@ -175,9 +174,7 @@ int main(int argc, char *const argv[]) {
     sigprocmask(SIG_UNBLOCK, &child_sigmask, NULL);
 
     if (FD_ISSET(sock, &readfds)) {
-      struct sockaddr client_addr;
-      socklen_t client_addr_len = 0;
-      int conn = accept(sock, &client_addr, &client_addr_len);
+      int conn = unix_accept(sock);
 
       if (fcntl(conn, F_SETFL, 0) == -1) {
         perror("fcntl clear flags");
@@ -531,7 +528,7 @@ struct server_entry *fork_server(const char *proto, struct semver *version,
   argv[array_len] = NULL;
 
   int sockets[2];
-  if (unix_socketpair(SOCK_STREAM, sockets) == -1) {
+  if (unix_socketpair(sockets) == -1) {
     perror("unix_socketpair");
     return NULL;
   }

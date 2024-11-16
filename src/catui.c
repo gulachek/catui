@@ -1,6 +1,6 @@
 #include "catui.h"
-#include "unixsocket.h"
 #include <msgstream.h>
+#include <unixsocket.h>
 
 #include <assert.h>
 #include <cjson/cJSON.h>
@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/errno.h>
-#include <sys/socket.h>
 #include <unistd.h>
 
 static void fperror(FILE *err, const char *s) {
@@ -35,7 +34,7 @@ static const char *catui_address() {
 int catui_connect(const char *proto, const char *semver, FILE *err) {
   const char *addr = catui_address();
 
-  int sock = unix_socket(SOCK_STREAM);
+  int sock = unix_socket();
   if (sock == -1) {
     fprintf(err, "Failed to allocate unix_socket\n");
     return -1;
