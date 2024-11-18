@@ -11,16 +11,6 @@
 #include <sys/errno.h>
 #include <unistd.h>
 
-static void fperror(FILE *err, const char *s) {
-  if (!err)
-    return;
-  char *msg = strerror(errno);
-  if (s)
-    fprintf(err, "%s: %s\n", s, msg);
-  else
-    fprintf(err, "%s\n", msg);
-}
-
 static const char *catui_address() {
   const char *address = getenv("CATUI_ADDRESS");
 
