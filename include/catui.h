@@ -60,7 +60,7 @@ int16_t CATUI_API catui_server_encode_ack(void *buf, size_t buf_size,
  * @returns size of message if successful, < 0 on error
  */
 int16_t CATUI_API catui_server_encode_nack(void *buf, size_t buf_size,
-                                           char *err_to_send, FILE *err);
+                                           const char *err_to_send, FILE *err);
 
 /**
  * Send an ack message to a file descriptor
@@ -77,7 +77,7 @@ int16_t CATUI_API catui_server_ack(int fd, FILE *err);
  * @param err A stream that will have an error message written if applicable
  * @returns size of message if successful, < 0 on error
  */
-int16_t CATUI_API catui_server_nack(int fd, char *err_to_send, FILE *err);
+int16_t CATUI_API catui_server_nack(int fd, const char *err_to_send, FILE *err);
 
 /**
  * Semver structure
