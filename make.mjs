@@ -1,55 +1,51 @@
 import { cli, Path } from "esmakefile";
-import { platformCompiler, C } from "esmakefile-c";
-import { writeFile, rm } from "node:fs/promises";
+import { writeFile, rm, readFile } from "node:fs/promises";
+import { Distribution, addCompileCommands } from 'esmakefile-cmake';
 
-cli((book) => {
-  const c = new C(platformCompiler(), {
-    cVersion: "C17",
-    book,
-  });
+const packageContent = await readFile('package.json', 'utf8');
+const { name, version } = JSON.parse(packageContent);
 
-  const unixsocket = "unixsocket";
-  const msgstream = "msgstream";
-  const libcjson = "libcjson";
+cli((make) => {
+  make.add("all", []);
 
-  book.add("all", []);
+	const d = new Distribution(make, {
+		name, version,
+		cStd: 17,
+	});
 
-  const catui = c.addLibrary({
-    name: "catui",
-    version: "0.1.0",
-    src: ["src/catui.c", "src/catui_server.c"],
-    link: [unixsocket, msgstream, libcjson],
-  });
+	const unix = d.findPackage('unixsocket');
+	const msgstream = d.findPackage('msgstream');
+	const cjson = d.findPackage('libcjson');
 
-  book.add("catui", catui);
+	const catui = d.addLibrary({
+		name: 'catui',
+		src: ['src/catui.c', 'src/catui_server.c'],
+		linkTo: [unix, msgstream, cjson]
+	});
+
+	// TODO - remove these executables from library distribution
 
   // Load balancer implementation
-  c.addExecutable({
+  const catuid = d.addExecutable({
     name: "catuid",
-    version: "0.1.0",
     src: ["src/catuid.c"],
-    link: [unixsocket, libcjson, msgstream, catui],
+    linkTo: [unix, cjson, msgstream, catui],
   });
 
   // Testing
-  c.addExecutable({
+  const echoApp = d.addExecutable({
     name: "echo_app",
     src: ["test/echo_app.c"],
-    link: [catui, msgstream],
+    linkTo: [catui],
   });
 
-  c.addExecutable({
+  const echoServer = d.addExecutable({
     name: "echo_server",
     src: ["test/echo_server.c"],
-    link: [catui, msgstream],
+    linkTo: [catui],
   });
 
-  const catuid = Path.build("catuid");
-  const echoApp = Path.build("echo_app");
-  const echoServer = Path.build("echo_server");
-
-  const compileCommands = Path.build("compile_commands.json");
-  c.addCompileCommands();
+	const cmds = addCompileCommands(make, d);
 
   const echoVersion = "1.0.0";
   const catuiDir = Path.build("catui");
@@ -57,7 +53,7 @@ cli((book) => {
     `com.example.echo/${echoVersion}/config.json`
   );
 
-  book.add(echoConfig, async (args) => {
+  make.add(echoConfig, async (args) => {
     const [config, server] = args.absAll(echoConfig, echoServer);
     const json = JSON.stringify({
       exec: [server],
@@ -66,11 +62,11 @@ cli((book) => {
     await writeFile(config, json, "utf8");
   });
 
-  book.add("all", [compileCommands, echoApp, echoServer, catuid, echoConfig]);
+  make.add("all", [cmds, catui.binary, echoApp.binary, echoServer.binary]);
 
-  book.add("serve", async (args) => {
+  make.add("serve", async (args) => {
     const [server, sock, search] = args.absAll(
-      catuid,
+      catuid.binary,
       Path.build("test.sock"),
       catuiDir
     );

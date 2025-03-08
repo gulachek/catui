@@ -1,6 +1,6 @@
 {
   "name": "catui",
-  "version": "1.0.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "",
   "main": "index.js",
@@ -10,9 +10,8 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "esmakefile": "^0.5.0",
-    "esmakefile-c": "^0.2.0",
-    "glob": "^10.3.10"
+  "devDependencies": {
+    "esmakefile": "^0.6.3",
+    "esmakefile-cmake": "^0.1.3"
   }
 }
