@@ -13,6 +13,26 @@ cmake_build_install() {
 
 SRC="$PWD"
 
+# gtest
+GTEST_DOWNLOAD="$VENDORSRC/download-gtest.tgz"
+
+download \
+	-u "https://github.com/google/googletest/archive/refs/heads/main.tar.gz" \
+	-c "2be01a3a16c58a72edd48cd11f0457da8cc9bcfbface2425011a444928ba9723" \
+	-o "$GTEST_DOWNLOAD"
+	
+GTEST="$VENDORSRC/googletest"
+
+md "$GTEST"
+
+untar -f "$GTEST_DOWNLOAD" -d "$GTEST"
+
+cd "$GTEST"
+cmake -DBUILD_GMOCK=OFF "-DCMAKE_INSTALL_PREFIX=$VENDOR" -S . -B build
+cmake_build_install
+
+rm "$GTEST_DOWNLOAD"
+
 # cJSON
 CJSON_DOWNLOAD="$VENDORSRC/download-cjson.tgz"
 download \
