@@ -16,6 +16,18 @@ cli((make) => {
 	const unix = d.findPackage('unixsocket');
 	const msgstream = d.findPackage('msgstream');
 	const cjson = d.findPackage('libcjson');
+
+	const catui = d.addLibrary({
+		name: 'catui',
+		src: ['src/catui.c', 'src/catui_server.c'],
+		linkTo: [unix, msgstream, cjson]
+	});
+
+	// TODO - remove these executables from library distribution
+
+  // Load balancer implementation
+  const catuid = d.addExecutable({
+    name: "catuid",
     src: ["src/catuid.c"],
     linkTo: [unix, cjson, msgstream, catui],
   });
