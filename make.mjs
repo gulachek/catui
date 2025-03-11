@@ -32,28 +32,6 @@ cli((make) => {
     linkTo: [catui, gtest],
   });
 
-  // TODO - remove these executables from library distribution
-
-  // Load balancer implementation
-  const catuid = d.addExecutable({
-    name: "catuid",
-    src: ["src/catuid.c"],
-    linkTo: [unix, cjson, msgstream, catui],
-  });
-
-  // Testing
-  const echoApp = d.addExecutable({
-    name: "echo_app",
-    src: ["test/echo_app.c"],
-    linkTo: [catui],
-  });
-
-  const echoServer = d.addExecutable({
-    name: "echo_server",
-    src: ["test/echo_server.c"],
-    linkTo: [catui],
-  });
-
   const cmds = addCompileCommands(make, d);
 
   const echoVersion = "1.0.0";
