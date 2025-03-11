@@ -1,7 +1,10 @@
 [requires]
 unixsocket/0.1.0
-msgstream/0.3.0
+msgstream/0.3.1
 cjson/1.7.16
+
+[test_requires]
+boost/1.83.0
 
 [generators]
 PkgConfigDeps

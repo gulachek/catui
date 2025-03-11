@@ -1,29 +1,38 @@
 import { cli, Path } from "esmakefile";
 import { writeFile, rm, readFile } from "node:fs/promises";
-import { Distribution, addCompileCommands } from 'esmakefile-cmake';
+import { Distribution, addCompileCommands } from "esmakefile-cmake";
 
-const packageContent = await readFile('package.json', 'utf8');
+const packageContent = await readFile("package.json", "utf8");
 const { name, version } = JSON.parse(packageContent);
 
 cli((make) => {
   make.add("all", []);
 
-	const d = new Distribution(make, {
-		name, version,
-		cStd: 17,
-	});
+  const d = new Distribution(make, {
+    name,
+    version,
+    cStd: 17,
+    cxxStd: 20,
+  });
 
-	const unix = d.findPackage('unixsocket');
-	const msgstream = d.findPackage('msgstream');
-	const cjson = d.findPackage('libcjson');
+  const unix = d.findPackage("unixsocket");
+  const msgstream = d.findPackage("msgstream");
+  const cjson = d.findPackage("libcjson");
+  const gtest = d.findPackage("gtest_main");
 
-	const catui = d.addLibrary({
-		name: 'catui',
-		src: ['src/catui.c', 'src/catui_server.c'],
-		linkTo: [unix, msgstream, cjson]
-	});
+  const catui = d.addLibrary({
+    name: "catui",
+    src: ["src/catui.c", "src/catui_server.c"],
+    linkTo: [unix, msgstream, cjson],
+  });
 
-	// TODO - remove these executables from library distribution
+  const test = d.addTest({
+    name: "catui_test",
+    src: ["test/catui_test.cpp"],
+    linkTo: [catui, gtest],
+  });
+
+  // TODO - remove these executables from library distribution
 
   // Load balancer implementation
   const catuid = d.addExecutable({
@@ -45,7 +54,7 @@ cli((make) => {
     linkTo: [catui],
   });
 
-	const cmds = addCompileCommands(make, d);
+  const cmds = addCompileCommands(make, d);
 
   const echoVersion = "1.0.0";
   const catuiDir = Path.build("catui");
@@ -63,6 +72,7 @@ cli((make) => {
   });
 
   make.add("all", [cmds, catui.binary, echoApp.binary, echoServer.binary]);
+  make.add("test", [test.run], () => {});
 
   make.add("serve", async (args) => {
     const [server, sock, search] = args.absAll(
