@@ -47,7 +47,7 @@ untar -d "$CJSON" -f "$CJSON_DOWNLOAD"
 # cJSON CMakeLists.txt configures files that have full install paths. Must define prefix
 
 cd "$CJSON"
-cmake -DENABLE_CJSON_TEST=OFF "-DCMAKE_INSTALL_PREFIX=$VENDOR" -S . -B build
+cmake -DENABLE_CJSON_TEST=OFF -DBUILD_SHARED_LIBS=OFF "-DCMAKE_INSTALL_PREFIX=$VENDOR" -S . -B build
 cmake_build_install
 
 rm "$CJSON_DOWNLOAD"

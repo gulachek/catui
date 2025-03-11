@@ -1,9 +1,7 @@
-#define BOOST_TEST_MODULE CatuiTest
-#include <boost/test/unit_test.hpp>
-
 #include "catui.h"
 
-#include <boost/json.hpp>
+#include <cjson/cJSON.h>
+#include <gtest/gtest.h>
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -18,14 +16,43 @@
 using std::size_t;
 using std::uint8_t;
 
-struct f {
+std::string json_str_prop(cJSON *j, const char *prop) {
+  cJSON *item = cJSON_GetObjectItem(j, prop);
+  if (!item)
+    return "";
+  return cJSON_GetStringValue(item);
+}
+
+struct catui_req {
+  std::string catui_version;
+  std::string protocol;
+  std::string version;
+
+  template <typename String> catui_req(String &&s) {
+    cJSON *json = cJSON_ParseWithLength(s.data(), s.size());
+    if (!json) {
+      ADD_FAILURE() << "Failed to parse JSON: "
+                    << std::string_view{s.data(), s.size()};
+      return;
+    }
+
+    catui_version = json_str_prop(json, "catui-version");
+    protocol = json_str_prop(json, "protocol");
+    version = json_str_prop(json, "version");
+
+    cJSON_free(json);
+  }
+};
+
+class f : public testing::Test {
+protected:
   int write_;
   int read_;
 
-  f() {
+  void SetUp() override {
     int fds[2];
     if (::pipe(fds) == -1) {
-      BOOST_FAIL("Failed to allocate pipe");
+      ADD_FAILURE() << "Failed to allocate pipe";
       ::perror("pipe");
       return;
     }
@@ -34,14 +61,14 @@ struct f {
     write_ = fds[1];
   }
 
-  ~f() {
+  void TearDown() override {
     ::close(read_);
     ::close(write_);
   }
 };
 
-BOOST_AUTO_TEST_CASE(EncodedConnectRequestIsJson) {
-  std::array<uint8_t, CATUI_CONNECT_SIZE> buf;
+TEST(Encoding, EncodedConnectRequestIsJson) {
+  std::array<char, CATUI_CONNECT_SIZE> buf;
 
   catui_connect_request req;
   req.catui_version.major = 1;
@@ -57,17 +84,15 @@ BOOST_AUTO_TEST_CASE(EncodedConnectRequestIsJson) {
   size_t msgsz;
   int ok = catui_encode_connect(&req, buf.data(), buf.size(), &msgsz);
 
-  BOOST_REQUIRE(ok);
-  std::string_view jmsg{(char *)buf.data(), msgsz};
+  ASSERT_TRUE(ok);
+  catui_req msg{buf};
 
-  auto msg = boost::json::parse(jmsg).as_object();
-
-  BOOST_TEST(msg["catui-version"] == "1.2.3");
-  BOOST_TEST(msg["protocol"] == "com.example.test");
-  BOOST_TEST(msg["version"] == "4.5.6");
+  EXPECT_EQ(msg.catui_version, "1.2.3");
+  EXPECT_EQ(msg.protocol, "com.example.test");
+  EXPECT_EQ(msg.version, "4.5.6");
 }
 
-BOOST_AUTO_TEST_CASE(EncodingToSmallBufFails) {
+TEST(Encoding, EncodingToSmallBufFails) {
   std::array<uint8_t, 50> buf; // doesn't leave enough room
 
   catui_connect_request req;
@@ -84,26 +109,27 @@ BOOST_AUTO_TEST_CASE(EncodingToSmallBufFails) {
   size_t msgsz;
   int ok = catui_encode_connect(&req, buf.data(), buf.size(), &msgsz);
 
-  BOOST_TEST(!ok);
+  EXPECT_FALSE(ok);
 }
 
-BOOST_AUTO_TEST_CASE(DecodedConnectFromRawJson) {
+TEST(Encoding, DecodedConnectFromRawJson) {
   std::string msg =
-      R"({"catui-version": "1.2.3", "protocol": "com.example.test", "version": "4.5.7"  } )";
+      R"({"catui-version": "1.2.3", "protocol": "com.example.test", "version":
+"4.5.7"  } )";
 
   catui_connect_request req;
 
   int ok = catui_decode_connect(msg.data(), msg.size(), &req);
 
-  BOOST_REQUIRE(ok);
-  BOOST_TEST(req.catui_version.major == 1);
-  BOOST_TEST(req.catui_version.minor == 2);
-  BOOST_TEST(req.catui_version.patch == 3);
+  ASSERT_TRUE(ok);
+  EXPECT_EQ(req.catui_version.major, 1);
+  EXPECT_EQ(req.catui_version.minor, 2);
+  EXPECT_EQ(req.catui_version.patch, 3);
 
   std::string_view protocol{req.protocol};
-  BOOST_TEST(protocol == "com.example.test");
+  EXPECT_EQ(protocol, "com.example.test");
 
-  BOOST_TEST(req.version.major == 4);
-  BOOST_TEST(req.version.minor == 5);
-  BOOST_TEST(req.version.patch == 7);
+  EXPECT_EQ(req.version.major, 4);
+  EXPECT_EQ(req.version.minor, 5);
+  EXPECT_EQ(req.version.patch, 7);
 }
