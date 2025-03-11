@@ -1,9 +1,16 @@
+/**
+ * Copyright 2025 Nicholas Gulachek
+ *
+ * Use of this source code is governed by an MIT-style
+ * license that can be found in the LICENSE file or at
+ * https://opensource.org/licenses/MIT.
+ */
 #ifndef CATUI_H
 #define CATUI_H
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
