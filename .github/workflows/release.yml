@@ -33,6 +33,7 @@ jobs:
         with:
           node-version: 22.x
       - run: npm ci
+      - run: script/install-deps.sh
       - uses: actions/download-artifact@v4
         with:
           name: catui-tarball
