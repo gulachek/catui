@@ -17,7 +17,10 @@ cli((make) => {
 
   const unix = d.findPackage("unixsocket");
   const msgstream = d.findPackage("msgstream");
-  const cjson = d.findPackage("libcjson");
+  const cjson = d.findPackage({
+    pkgconfig: "libcjson",
+    cmake: "cjson",
+  });
   const gtest = d.findPackage("gtest_main");
 
   const catui = d.addLibrary({
