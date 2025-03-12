@@ -17,8 +17,8 @@ SRC="$PWD"
 GTEST_DOWNLOAD="$VENDORSRC/download-gtest.tgz"
 
 download \
-	-u "https://github.com/google/googletest/archive/refs/heads/main.tar.gz" \
-	-c "2be01a3a16c58a72edd48cd11f0457da8cc9bcfbface2425011a444928ba9723" \
+	-u "https://github.com/google/googletest/releases/download/v1.16.0/googletest-1.16.0.tar.gz" \
+	-c "78c676fc63881529bf97bf9d45948d905a66833fbfa5318ea2cd7478cb98f399" \
 	-o "$GTEST_DOWNLOAD"
 	
 GTEST="$VENDORSRC/googletest"
