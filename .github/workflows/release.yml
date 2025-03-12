@@ -1,0 +1,51 @@
+name: Release
+on:
+  release:
+    types: [published]
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+      - name: Validate Tag with Version
+        id: version
+        run: script/parse-validate-version.sh
+      - run: npm ci
+      - run: node make.mjs dist-catui
+      - name: Upload Package Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: catui-tarball
+          path: build/catui-*.tgz
+  test-package:
+    needs: package
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: catui-tarball
+      - run: script/test-release.sh catui-*.tgz
+  upload-package:
+    needs: test-package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: catui-tarball
+      - run: script/upload-package.sh catui-*.tgz
