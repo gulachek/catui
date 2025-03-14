@@ -19,7 +19,10 @@ cli((make) => {
   const msgstream = d.findPackage("msgstream");
   const cjson = d.findPackage({
     pkgconfig: "libcjson",
-    cmake: "cjson",
+    cmake: {
+      packageName: "cJSON",
+      libraryTarget: "cjson",
+    },
   });
   const gtest = d.findPackage("gtest_main");
 
