@@ -16,6 +16,17 @@
 using std::size_t;
 using std::uint8_t;
 
+#define MKSEMVER(NM, MAJ, MIN, PAT)                                            \
+  catui_semver NM;                                                             \
+  NM.major = MAJ;                                                              \
+  NM.minor = MIN;                                                              \
+  NM.patch = PAT;
+
+void assert_semver_compat(const catui_semver *api,
+                          const catui_semver *consumer);
+void assert_semver_nocompat(const catui_semver *api,
+                            const catui_semver *consumer);
+
 std::string json_str_prop(cJSON *j, const char *prop) {
   cJSON *item = cJSON_GetObjectItem(j, prop);
   if (!item)
@@ -132,4 +143,93 @@ TEST(Encoding, DecodedConnectFromRawJson) {
   EXPECT_EQ(req.version.major, 4);
   EXPECT_EQ(req.version.minor, 5);
   EXPECT_EQ(req.version.patch, 7);
+}
+
+TEST(Semver, SameVersionOk) {
+  MKSEMVER(v, 1, 2, 3);
+
+  assert_semver_compat(&v, &v);
+}
+
+TEST(Semver, NullNotOk) {
+  MKSEMVER(v, 1, 2, 3);
+
+  assert_semver_nocompat(NULL, NULL);
+  assert_semver_nocompat(&v, NULL);
+  assert_semver_nocompat(NULL, &v);
+}
+
+TEST(Semver, DifferentMajorVersionNotOk) {
+  MKSEMVER(api, 1, 2, 3);
+  MKSEMVER(consumer, 2, 0, 0);
+
+  assert_semver_nocompat(&api, &consumer);
+}
+
+TEST(Semver, SameMajorLesserMinorOk) {
+  MKSEMVER(api, 1, 2, 3);
+  MKSEMVER(consumer, 1, 1, 5);
+
+  assert_semver_compat(&api, &consumer);
+}
+
+TEST(Semver, SameMajorGreaterMinorNotOk) {
+  MKSEMVER(api, 1, 2, 3);
+  MKSEMVER(consumer, 1, 3, 0);
+
+  assert_semver_nocompat(&api, &consumer);
+}
+
+TEST(Semver, SameMajorMinorLesserPatchOk) {
+  MKSEMVER(api, 1, 2, 3);
+  MKSEMVER(consumer, 1, 2, 2);
+
+  assert_semver_compat(&api, &consumer);
+}
+
+TEST(Semver, SameMajorMinorGreaterPatchNotOk) {
+  MKSEMVER(api, 1, 2, 3);
+  MKSEMVER(consumer, 1, 2, 4);
+
+  assert_semver_nocompat(&api, &consumer);
+}
+
+TEST(Semver, ZeroMajorSameVersionOk) {
+  MKSEMVER(api, 0, 2, 3);
+  MKSEMVER(consumer, 0, 2, 3);
+
+  assert_semver_compat(&api, &consumer);
+}
+
+TEST(Semver, ZeroMajorDifferentMinorNotOk) {
+  MKSEMVER(api, 0, 3, 1);
+  MKSEMVER(consumer, 0, 2, 3);
+
+  assert_semver_nocompat(&api, &consumer);
+}
+
+TEST(Semver, ZeroMajorSameMinorLesserPatchOk) {
+  MKSEMVER(api, 0, 2, 3);
+  MKSEMVER(consumer, 0, 2, 1);
+
+  assert_semver_compat(&api, &consumer);
+}
+
+TEST(Semver, ZeroMajorSameMinorGreaterPatchNotOk) {
+  MKSEMVER(api, 0, 2, 1);
+  MKSEMVER(consumer, 0, 2, 2);
+
+  assert_semver_nocompat(&api, &consumer);
+}
+
+void assert_semver_compat(const catui_semver *api,
+                          const catui_semver *consumer) {
+  EXPECT_TRUE(catui_semver_can_support(api, consumer));
+  EXPECT_TRUE(catui_semver_can_use(consumer, api));
+}
+
+void assert_semver_nocompat(const catui_semver *api,
+                            const catui_semver *consumer) {
+  EXPECT_FALSE(catui_semver_can_support(api, consumer));
+  EXPECT_FALSE(catui_semver_can_use(consumer, api));
 }

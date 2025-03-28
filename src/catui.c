@@ -168,3 +168,34 @@ int CATUI_API catui_decode_connect(const void *buf, size_t msgsz,
 
   return 1;
 }
+
+int catui_semver_can_support(const catui_semver *api,
+                             const catui_semver *consumer) {
+  return catui_semver_can_use(consumer, api);
+}
+
+int catui_semver_can_use(const catui_semver *consumer,
+                         const catui_semver *api) {
+  if (!(api && consumer))
+    return 0;
+
+  if (consumer->major != api->major)
+    return 0;
+
+  if (consumer->major == 0) {
+    if (consumer->minor != api->minor)
+      return 0;
+
+    if (consumer->patch > api->patch)
+      return 0;
+  } else {
+    if (consumer->minor > api->minor) {
+      return 0;
+    } else if (consumer->minor == api->minor) {
+      if (consumer->patch > api->patch)
+        return 0;
+    }
+  }
+
+  return 1;
+}

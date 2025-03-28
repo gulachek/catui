@@ -98,6 +98,25 @@ typedef struct {
   uint32_t patch;
 } catui_semver;
 
+/**
+ * Test whether a semver version can support another semver version
+ * @param api The API semver version in question
+ * @param consumer The consumer's semver version needing support
+ * @returns 1 if api can support consumer, 0 otherwise
+ * @remarks This is equivalent to catui_semver_can_use(consumer, api)
+ */
+int catui_semver_can_support(const catui_semver *api,
+                             const catui_semver *consumer);
+
+/**
+ * Test whether a semver version can use another semver version
+ * @param consumer The consumer's semver version needing support
+ * @param api The API semver version in question
+ * @returns 1 if api can support consumer, 0 otherwise
+ * @remarks This is equivalent to catui_semver_can_support(api, consumer)
+ */
+int catui_semver_can_use(const catui_semver *consumer, const catui_semver *api);
+
 #define CATUI_PROTOCOL_SIZE 128
 #define CATUI_VERSION_SIZE 23 // 5maj + 5min + 10pat + 2dots + null
 
