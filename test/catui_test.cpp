@@ -14,6 +14,8 @@
 #include <string_view>
 
 using std::size_t;
+using std::uint16_t;
+using std::uint32_t;
 using std::uint8_t;
 
 #define MKSEMVER(NM, MAJ, MIN, PAT)                                            \
@@ -26,6 +28,9 @@ void assert_semver_compat(const catui_semver *api,
                           const catui_semver *consumer);
 void assert_semver_nocompat(const catui_semver *api,
                             const catui_semver *consumer);
+
+void assert_semver_string_eq(uint16_t maj, uint16_t min, uint32_t pat,
+                             const std::string &expected);
 
 std::string json_str_prop(cJSON *j, const char *prop) {
   cJSON *item = cJSON_GetObjectItem(j, prop);
@@ -222,6 +227,34 @@ TEST(Semver, ZeroMajorSameMinorGreaterPatchNotOk) {
   assert_semver_nocompat(&api, &consumer);
 }
 
+TEST(Semver, SerializesCorrectly) {
+#define T(MJ, MN, P, E) assert_semver_string_eq(MJ, MN, P, E);
+  T(1, 2, 3, "1.2.3")
+  T(0xffffu, 0xffffu, 0xffffffffu, "65535.65535.4294967295")
+  T(0, 0, 0, "0.0.0")
+#undef T
+}
+
+TEST(Semver, FailsToSerializeNullVersion) {
+  char buf[CATUI_VERSION_SIZE];
+  auto n = catui_semver_to_string(nullptr, buf, sizeof(buf));
+  EXPECT_EQ(n, -1);
+}
+
+TEST(Semver, ComputesSizeWhenNullBufGiven) {
+  MKSEMVER(v, 123, 456, 789);
+  auto n = catui_semver_to_string(&v, nullptr, 0);
+  EXPECT_EQ(n, strlen("123.456.789"));
+}
+
+TEST(Semver, ComputesSizeAndNullTerminatesWhenShortBufGiven) {
+  MKSEMVER(v, 123, 456, 789);
+  char buf[3];
+  auto n = catui_semver_to_string(&v, buf, sizeof(buf));
+  EXPECT_EQ(n, strlen("123.456.789"));
+  EXPECT_EQ(std::string{"12"}, buf);
+}
+
 void assert_semver_compat(const catui_semver *api,
                           const catui_semver *consumer) {
   EXPECT_TRUE(catui_semver_can_support(api, consumer));
@@ -232,4 +265,13 @@ void assert_semver_nocompat(const catui_semver *api,
                             const catui_semver *consumer) {
   EXPECT_FALSE(catui_semver_can_support(api, consumer));
   EXPECT_FALSE(catui_semver_can_use(consumer, api));
+}
+
+void assert_semver_string_eq(uint16_t maj, uint16_t min, uint32_t pat,
+                             const std::string &expected) {
+  catui_semver v{maj, min, pat};
+  char buf[CATUI_VERSION_SIZE];
+  int n = catui_semver_to_string(&v, buf, sizeof(buf));
+  ASSERT_EQ(n, expected.size());
+  EXPECT_EQ(expected, buf);
 }

@@ -199,3 +199,16 @@ int catui_semver_can_use(const catui_semver *consumer,
 
   return 1;
 }
+
+int catui_semver_to_string(const catui_semver *v, void *buf, size_t bufsz) {
+  if (!v)
+    return -1;
+
+  char fallback_buf[CATUI_VERSION_SIZE];
+  if (!buf) {
+    buf = fallback_buf;
+    bufsz = CATUI_VERSION_SIZE;
+  }
+
+  return snprintf(buf, bufsz, "%hu.%hu.%u", v->major, v->minor, v->patch);
+}

@@ -86,6 +86,9 @@ int16_t CATUI_API catui_server_ack(int fd, FILE *err);
  */
 int16_t CATUI_API catui_server_nack(int fd, const char *err_to_send, FILE *err);
 
+#define CATUI_PROTOCOL_SIZE 128
+#define CATUI_VERSION_SIZE 23 // 5maj + 5min + 10pat + 2dots + null
+
 /**
  * Semver structure
  */
@@ -97,6 +100,20 @@ typedef struct {
   /// The patch version
   uint32_t patch;
 } catui_semver;
+
+/**
+ * Serializes a semver to a null terminated ascii C string
+ * @param v The version
+ * @param buf The preallocated buffer to hold the new C string. When NULL, only
+ * compute string size in return value.
+ * @param bufsz The size of buf in bytes. N/A when buf is NULL
+ * @return The strlen() of the written string or -1 when a null version is given
+ * @remarks When the return value is greater than or equal to bufsz, this means
+ * the string was truncated, similar to snprintf. It is recommended to reserve
+ * at least CATUI_VERSION_SIZE bytes for the operation to always have enough
+ * memory.
+ */
+int catui_semver_to_string(const catui_semver *v, void *buf, size_t bufsz);
 
 /**
  * Test whether a semver version can support another semver version
@@ -116,9 +133,6 @@ int catui_semver_can_support(const catui_semver *api,
  * @remarks This is equivalent to catui_semver_can_support(api, consumer)
  */
 int catui_semver_can_use(const catui_semver *consumer, const catui_semver *api);
-
-#define CATUI_PROTOCOL_SIZE 128
-#define CATUI_VERSION_SIZE 23 // 5maj + 5min + 10pat + 2dots + null
 
 /**
  * Structure representing a catui connect request
