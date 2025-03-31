@@ -11,6 +11,7 @@
 
 #include <assert.h>
 #include <cjson/cJSON.h>
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,15 +72,14 @@ int catui_connect(const char *proto, const char *semver, FILE *err) {
 }
 
 typedef char semver_buf[CATUI_VERSION_SIZE];
-static int semver_encode(const catui_semver *v, char *buf) {
-  int n = snprintf(buf, CATUI_VERSION_SIZE, "%hu.%hu.%hu", v->major, v->minor,
-                   v->patch);
 
-  return 0 <= n && n < CATUI_VERSION_SIZE;
+static int semver_encode(const catui_semver *v, char *buf) {
+  int ret = catui_semver_to_string(v, buf, CATUI_VERSION_SIZE);
+  return 0 < ret && ret < CATUI_VERSION_SIZE;
 }
 
-static int semver_decode(const char *cstr, catui_semver *v) {
-  return sscanf(cstr, "%hu.%hu.%u", &v->major, &v->minor, &v->patch) == 3;
+static int semver_decode(const char *str, catui_semver *v) {
+  return catui_semver_from_string(str, strlen(str), v);
 }
 
 int catui_encode_connect(const catui_connect_request *req, void *buf,
@@ -166,5 +166,129 @@ int CATUI_API catui_decode_connect(const void *buf, size_t msgsz,
   if (!semver_decode(version, &req->version))
     return 0;
 
+  return 1;
+}
+
+int catui_semver_can_support(const catui_semver *api,
+                             const catui_semver *consumer) {
+  return catui_semver_can_use(consumer, api);
+}
+
+int catui_semver_can_use(const catui_semver *consumer,
+                         const catui_semver *api) {
+  if (!(api && consumer))
+    return 0;
+
+  if (consumer->major != api->major)
+    return 0;
+
+  if (consumer->major == 0) {
+    if (consumer->minor != api->minor)
+      return 0;
+
+    if (consumer->patch > api->patch)
+      return 0;
+  } else {
+    if (consumer->minor > api->minor) {
+      return 0;
+    } else if (consumer->minor == api->minor) {
+      if (consumer->patch > api->patch)
+        return 0;
+    }
+  }
+
+  return 1;
+}
+
+int catui_semver_to_string(const catui_semver *v, void *buf, size_t bufsz) {
+  if (!v)
+    return -1;
+
+  char fallback_buf[CATUI_VERSION_SIZE];
+  if (!buf) {
+    buf = fallback_buf;
+    bufsz = CATUI_VERSION_SIZE;
+  }
+
+  return snprintf(buf, bufsz, "%hu.%hu.%u", v->major, v->minor, v->patch);
+}
+
+static uint8_t digitval(char c) {
+  assert(isdigit(c));
+  return (uint8_t)(c - '0');
+}
+
+static const char *parse_decimal(const char *start, const char *end,
+                                 uint64_t *n) {
+
+  assert(n != NULL);
+  uint64_t bad = ~0llu;
+
+  if (start == end) {
+    *n = bad;
+    return end;
+  }
+
+  int leading_zero = *start == '0';
+  int ndigits = 0;
+
+  uint64_t value = 0;
+  const char *it = start;
+  for (; it < end && value <= 0xffffffffu; ++it) {
+    char c = *it;
+    if (isdigit(c)) {
+      value = (10 * value) + digitval(c);
+      ndigits += 1;
+    } else {
+      break;
+    }
+  }
+
+  if (leading_zero && ndigits > 1) {
+    *n = bad;
+    return start;
+  }
+
+  *n = value;
+  return it;
+}
+
+int catui_semver_from_string(const void *buf, size_t bufsz, catui_semver *v) {
+  catui_semver fallback_v;
+  if (!v)
+    v = &fallback_v;
+
+  const char *start = (const char *)buf;
+  const char *end = start + bufsz;
+  uint64_t n;
+
+  const char *dot1 = parse_decimal(start, end, &n);
+  if (dot1 == start || dot1 == end || *dot1 != '.')
+    return 0;
+
+  if (n > 0xffffu)
+    return 0;
+
+  v->major = (uint16_t)n;
+
+  start = dot1 + 1;
+  const char *dot2 = parse_decimal(start, end, &n);
+  if (dot2 == start || dot2 == end || *dot2 != '.')
+    return 0;
+
+  if (n > 0xffffu)
+    return 0;
+
+  v->minor = (uint16_t)n;
+
+  start = dot2 + 1;
+  const char *fin = parse_decimal(start, end, &n);
+  if (fin == start || fin != end)
+    return 0;
+
+  if (n > 0xfffffffflu)
+    return 0;
+
+  v->patch = (uint32_t)n;
   return 1;
 }
