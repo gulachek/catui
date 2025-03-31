@@ -72,15 +72,14 @@ int catui_connect(const char *proto, const char *semver, FILE *err) {
 }
 
 typedef char semver_buf[CATUI_VERSION_SIZE];
-static int semver_encode(const catui_semver *v, char *buf) {
-  int n = snprintf(buf, CATUI_VERSION_SIZE, "%hu.%hu.%hu", v->major, v->minor,
-                   v->patch);
 
-  return 0 <= n && n < CATUI_VERSION_SIZE;
+static int semver_encode(const catui_semver *v, char *buf) {
+  int ret = catui_semver_to_string(v, buf, CATUI_VERSION_SIZE);
+  return 0 < ret && ret < CATUI_VERSION_SIZE;
 }
 
-static int semver_decode(const char *cstr, catui_semver *v) {
-  return sscanf(cstr, "%hu.%hu.%u", &v->major, &v->minor, &v->patch) == 3;
+static int semver_decode(const char *str, catui_semver *v) {
+  return catui_semver_from_string(str, strlen(str), v);
 }
 
 int catui_encode_connect(const catui_connect_request *req, void *buf,
