@@ -116,6 +116,16 @@ typedef struct {
 int catui_semver_to_string(const catui_semver *v, void *buf, size_t bufsz);
 
 /**
+ * Deserializes a semver from an ascii string
+ * @param buf The buffer holding the C string
+ * @param bufsz The size of buf in bytes.
+ * @param v The version. When NULL, only validates input string
+ * @return 1 on success, 0 on failure
+ * @remarks The input string need not be null terminated.
+ */
+int catui_semver_from_string(const void *buf, size_t bufsz, catui_semver *v);
+
+/**
  * Test whether a semver version can support another semver version
  * @param api The API semver version in question
  * @param consumer The consumer's semver version needing support

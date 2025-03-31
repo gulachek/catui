@@ -11,6 +11,7 @@
 
 #include <assert.h>
 #include <cjson/cJSON.h>
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -211,4 +212,84 @@ int catui_semver_to_string(const catui_semver *v, void *buf, size_t bufsz) {
   }
 
   return snprintf(buf, bufsz, "%hu.%hu.%u", v->major, v->minor, v->patch);
+}
+
+static uint8_t digitval(char c) {
+  assert(isdigit(c));
+  return (uint8_t)(c - '0');
+}
+
+static const char *parse_decimal(const char *start, const char *end,
+                                 uint64_t *n) {
+
+  assert(n != NULL);
+  uint64_t bad = ~0llu;
+
+  if (start == end) {
+    *n = bad;
+    return end;
+  }
+
+  int leading_zero = *start == '0';
+  int ndigits = 0;
+
+  uint64_t value = 0;
+  const char *it = start;
+  for (; it < end && value <= 0xffffffffu; ++it) {
+    char c = *it;
+    if (isdigit(c)) {
+      value = (10 * value) + digitval(c);
+      ndigits += 1;
+    } else {
+      break;
+    }
+  }
+
+  if (leading_zero && ndigits > 1) {
+    *n = bad;
+    return start;
+  }
+
+  *n = value;
+  return it;
+}
+
+int catui_semver_from_string(const void *buf, size_t bufsz, catui_semver *v) {
+  catui_semver fallback_v;
+  if (!v)
+    v = &fallback_v;
+
+  const char *start = (const char *)buf;
+  const char *end = start + bufsz;
+  uint64_t n;
+
+  const char *dot1 = parse_decimal(start, end, &n);
+  if (dot1 == start || dot1 == end || *dot1 != '.')
+    return 0;
+
+  if (n > 0xffffu)
+    return 0;
+
+  v->major = (uint16_t)n;
+
+  start = dot1 + 1;
+  const char *dot2 = parse_decimal(start, end, &n);
+  if (dot2 == start || dot2 == end || *dot2 != '.')
+    return 0;
+
+  if (n > 0xffffu)
+    return 0;
+
+  v->minor = (uint16_t)n;
+
+  start = dot2 + 1;
+  const char *fin = parse_decimal(start, end, &n);
+  if (fin == start || fin != end)
+    return 0;
+
+  if (n > 0xfffffffflu)
+    return 0;
+
+  v->patch = (uint32_t)n;
+  return 1;
 }
